@@ -563,6 +563,7 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
     }
     if model.screen == Screen::Calendar {
         let msg = match key.code {
+            | KeyCode::PageUp | KeyCode::PageDown => crate::calendar::keymap::handle_key(key)?,
             | KeyCode::Char(':') => {
                 model.editor_state.helix.prefix = Some(Prefix::Command);
                 model.editor_state.helix.prompt.clear();

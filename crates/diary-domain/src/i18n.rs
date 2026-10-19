@@ -31,8 +31,8 @@ impl Language {
     pub fn tr(self, text: Text) -> &'static str {
         let (ko, en) = match text {
             | Text::CalendarKeys => (
-                "C-b/f/p/n:이동 | Enter:편집 | M-n/p:월 | M-]/[:년 | C-x C-c:종료 | C-g:취소",
-                "C-b/f/p/n:Move | Enter:Edit | M-n/p:Month | M-]/[:Year | C-x C-c:Quit | C-g:Cancel",
+                "C-b/f/p/n:이동 | Enter:편집\nM-p/n · PgUp/Dn:이전/다음 월\nM-[/] · C-PgUp/Dn:이전/다음 년\nC-x C-c:종료 | C-g:취소",
+                "C-b/f/p/n:Move | Enter:Edit\nM-p/n · PgUp/Dn:Previous/Next month\nM-[/] · C-PgUp/Dn:Previous/Next year\nC-x C-c:Quit | C-g:Cancel",
             ),
             | Text::EditorKeys => (
                 "C-x:명령 | C-g:취소 | C-s/r:검색 | C-/:실행취소 | M-d/BS:단어삭제",

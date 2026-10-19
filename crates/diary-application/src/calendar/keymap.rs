@@ -9,6 +9,10 @@ pub fn handle_key(key: KeyEvent) -> Option<Msg> {
     let mods = key.modifiers;
 
     match key.code {
+        | KeyCode::PageUp if mods == KeyModifiers::CONTROL => Some(Msg::CalendarPrevYear),
+        | KeyCode::PageDown if mods == KeyModifiers::CONTROL => Some(Msg::CalendarNextYear),
+        | KeyCode::PageUp if mods.is_empty() => Some(Msg::CalendarPrevMonth),
+        | KeyCode::PageDown if mods.is_empty() => Some(Msg::CalendarNextMonth),
         | KeyCode::Char('x') if mods == KeyModifiers::CONTROL => Some(Msg::EditorEnterCtrlXMode),
         | KeyCode::Left if mods.is_empty() => Some(Msg::CalendarMoveLeft),
         | KeyCode::Right if mods.is_empty() => Some(Msg::CalendarMoveRight),

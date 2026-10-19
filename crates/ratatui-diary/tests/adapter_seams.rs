@@ -16,6 +16,33 @@ use ratatui_diary::{Runtime,
 use tempfile::TempDir;
 
 #[test]
+fn calendar_header_selection_and_navigation_help_follow_the_cursor() {
+    for keybindings in [diary_application::settings::Keybindings::Emacs, diary_application::settings::Keybindings::Helix] {
+        let mut model = Model::new(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(), Default::default());
+        model.settings.language = diary_application::settings::Language::English;
+        model.settings.keybindings = keybindings;
+        let msg = app::handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE), &model).unwrap();
+        app::update(&mut model, msg);
+
+        let mut terminal = Terminal::new(TestBackend::new(100, 24)).unwrap();
+        terminal.draw(|frame| app::view(frame, &model)).unwrap();
+        let buffer = terminal.backend().buffer();
+        let text: String = buffer.content.iter().map(|cell| cell.symbol()).collect();
+        assert!(text.contains("2026-01"));
+        assert!(text.contains("Diary: 2026-01-01"));
+        assert!(text.contains("PgUp/Dn:Previous/Next month"));
+        assert!(text.contains("C-PgUp/Dn:Previous/Next year"));
+        let palette = ratatui_diary::theme::palette(model.settings.theme);
+        assert!(
+            buffer
+                .content
+                .iter()
+                .any(|cell| cell.symbol() == "1" && cell.bg == palette.selected_bg && cell.fg == palette.selected_fg)
+        );
+    }
+}
+
+#[test]
 fn rendering_uses_the_loaded_snapshot_even_after_the_file_is_removed() {
     let directory = TempDir::new().unwrap();
     let storage = Storage::with_dir(directory.path()).unwrap();

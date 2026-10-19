@@ -38,7 +38,7 @@ pub fn render(f: &mut Frame, model: &Model) {
         .constraints([
             Constraint::Length(3), // 헤더
             Constraint::Min(0),    // 달력
-            Constraint::Length(2), // 상태바
+            Constraint::Length(5), // 상태바
         ])
         .split(main_chunks[0]);
 
@@ -64,8 +64,8 @@ pub fn render(f: &mut Frame, model: &Model) {
             )
         } else {
             lang.text(
-                "h/j/k/l:이동 | Enter:편집 | H/L:월 | {/}:년 | :q:종료 | F2:설정",
-                "h/j/k/l:Move | Enter:Edit | H/L:Month | {/}:Year | :q:Quit | F2:Settings",
+                "h/j/k/l:이동 | Enter:편집\nH/L · PgUp/Dn:이전/다음 월\n{/} · C-PgUp/Dn:이전/다음 년\n:q:종료 | F2:설정",
+                "h/j/k/l:Move | Enter:Edit\nH/L · PgUp/Dn:Previous/Next month\n{/} · C-PgUp/Dn:Previous/Next year\n:q:Quit | F2:Settings",
             )
             .to_string()
         }

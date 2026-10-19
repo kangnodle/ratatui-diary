@@ -767,7 +767,10 @@ mod keybinding_tests {
     fn test_build_calendar_keybindings() {
         let state = CalendarState::new(2026, 2);
         let result = build_calendar_keybindings(&state);
-        assert_eq!(result, "C-b/f/p/n:이동 | Enter:편집 | M-n/p:월 | M-]/[:년 | C-x C-c:종료 | C-g:취소");
+        assert_eq!(
+            result,
+            "C-b/f/p/n:이동 | Enter:편집\nM-p/n · PgUp/Dn:이전/다음 월\nM-[/] · C-PgUp/Dn:이전/다음 년\nC-x C-c:종료 | C-g:취소"
+        );
     }
 
     #[test]
