@@ -55,7 +55,21 @@ pub fn render(f: &mut Frame, model: &Model) {
     render_calendar_grid(f, calendar_chunks[1], model);
 
     // 상태바 - 동적 키바인딩
-    let keybindings = if model.editor_state.submode == Some(crate::editor::state::EditorSubMode::CtrlX) {
+    let keybindings = if model.settings.keybindings == crate::settings::Keybindings::Helix {
+        if model.editor_state.helix.prefix == Some(crate::editor::helix::Prefix::Command) {
+            format!(
+                "{}\n{}",
+                crate::editor::helix::status(&model.editor_state),
+                crate::editor::helix::help(&model.editor_state, lang)
+            )
+        } else {
+            lang.text(
+                "h/j/k/l:이동 | Enter:편집 | H/L:월 | {/}:년 | :q:종료 | F2:설정",
+                "h/j/k/l:Move | Enter:Edit | H/L:Month | {/}:Year | :q:Quit | F2:Settings",
+            )
+            .to_string()
+        }
+    } else if model.editor_state.submode == Some(crate::editor::state::EditorSubMode::CtrlX) {
         lang.text("C-x C-c:저장 후 종료 | C-g:취소", "C-x C-c:Save & quit | C-g:Cancel").to_string()
     } else {
         format!(

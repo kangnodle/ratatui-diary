@@ -8,14 +8,14 @@ use crate::{app::{Model,
 
 pub fn execute_command(cmd: Command, model: &mut Model) -> std::io::Result<()> {
     match cmd {
-        | cmd @ (Command::Quit | Command::BackToCalendar) => {
-            if model.editor_state.is_modified {
+        | cmd @ (Command::Quit | Command::WriteAndQuit | Command::BackToCalendar) => {
+            if model.editor_state.is_modified || matches!(cmd, Command::WriteAndQuit) {
                 let date = model.editor_state.date;
                 let content = model.editor_state.get_content();
                 execute_command(Command::SaveDiary(date, content), model)?;
             }
-            if !model.editor_state.is_modified {
-                if matches!(cmd, Command::Quit) {
+            if !model.editor_state.is_modified && !model.show_error_popup {
+                if matches!(cmd, Command::Quit | Command::WriteAndQuit) {
                     model.should_quit = true;
                 } else {
                     model.screen = crate::app::Screen::Calendar;

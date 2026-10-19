@@ -21,9 +21,24 @@ impl Language {
 pub use crate::theme::{Palette,
                        Theme};
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum Keybindings {
+    #[default]
+    Emacs,
+    Helix,
+}
+impl Keybindings {
+    pub fn name(self) -> &'static str {
+        match self {
+            | Self::Emacs => "Emacs",
+            | Self::Helix => "Helix",
+        }
+    }
+}
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Settings {
     pub language: Language,
     pub theme: Theme,
+    pub keybindings: Keybindings,
 }
 impl Settings {
     pub fn path() -> io::Result<PathBuf> {
@@ -49,6 +64,8 @@ impl Settings {
                 | Some(("theme", "system")) => settings.theme = Theme::System,
                 | Some(("theme", "dark")) => settings.theme = Theme::Dark,
                 | Some(("theme", "light")) => settings.theme = Theme::Light,
+                | Some(("keybindings", "emacs")) => settings.keybindings = Keybindings::Emacs,
+                | Some(("keybindings", "helix")) => settings.keybindings = Keybindings::Helix,
                 | _ => return Err(io::Error::new(io::ErrorKind::InvalidData, "Invalid settings entry")),
             }
         }
@@ -65,6 +82,7 @@ impl Settings {
             | Theme::Dark => "dark",
             | Theme::Light => "light",
         };
-        fs::write(path, format!("language={language}\ntheme={theme}\n"))
+        let keybindings = self.keybindings.name().to_ascii_lowercase();
+        fs::write(path, format!("language={language}\ntheme={theme}\nkeybindings={keybindings}\n"))
     }
 }

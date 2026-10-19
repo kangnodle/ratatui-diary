@@ -20,7 +20,9 @@ pub fn handle_key(key: KeyEvent, model: &Model) -> Option<Msg> {
         return None;
     }
 
-    let cancel = key.code == KeyCode::Esc || (key.code == KeyCode::Char('g') && key.modifiers == KeyModifiers::CONTROL);
+    let cancel = key.code == KeyCode::Esc
+        || (key.code == KeyCode::Char('g') && key.modifiers == KeyModifiers::CONTROL)
+        || (model.settings.keybindings == crate::settings::Keybindings::Helix && key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL);
     if model.show_error_popup && cancel {
         return Some(Msg::DismissError);
     }
@@ -36,15 +38,25 @@ pub fn handle_key(key: KeyEvent, model: &Model) -> Option<Msg> {
             return Some(Msg::ToggleSettings);
         }
         if key.modifiers == KeyModifiers::CONTROL && matches!(key.code, KeyCode::Char('n' | 'p')) {
-            return Some(Msg::SettingsMove);
+            return Some(if key.code == KeyCode::Char('p') {
+                Msg::SettingsMoveBack
+            } else {
+                Msg::SettingsMove
+            });
         }
         return match key.code {
             | KeyCode::Esc => Some(Msg::ToggleSettings),
-            | KeyCode::Up | KeyCode::Down | KeyCode::Tab | KeyCode::BackTab => Some(Msg::SettingsMove),
+            | KeyCode::Down | KeyCode::Tab => Some(Msg::SettingsMove),
+            | KeyCode::Up | KeyCode::BackTab => Some(Msg::SettingsMoveBack),
+            | KeyCode::Char('j') if model.settings.keybindings == crate::settings::Keybindings::Helix => Some(Msg::SettingsMove),
+            | KeyCode::Char('k') if model.settings.keybindings == crate::settings::Keybindings::Helix => Some(Msg::SettingsMoveBack),
             | KeyCode::Left => Some(Msg::SettingsChange(false)),
             | KeyCode::Right | KeyCode::Enter | KeyCode::Char(' ') => Some(Msg::SettingsChange(true)),
             | _ => None,
         };
+    }
+    if model.settings.keybindings == crate::settings::Keybindings::Helix {
+        return Some(Msg::HelixKey(key));
     }
     if cancel {
         return Some(Msg::EditorKeyboardQuit);

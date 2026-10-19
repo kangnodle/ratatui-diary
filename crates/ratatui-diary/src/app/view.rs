@@ -89,6 +89,7 @@ fn render_settings(f: &mut Frame, model: &Model) {
     let values = [
         format!("{}: {}", lang.tr(crate::i18n::Text::Language), lang.tr(crate::i18n::Text::LanguageName)),
         format!("{}: {}", lang.tr(crate::i18n::Text::Theme), theme),
+        format!("{}: {}", lang.tr(crate::i18n::Text::Keybindings), model.settings.keybindings.name()),
     ];
     let mut lines: Vec<ratatui::text::Line> = values
         .into_iter()

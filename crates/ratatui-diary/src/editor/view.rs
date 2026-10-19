@@ -59,11 +59,6 @@ pub fn render(f: &mut Frame, model: &Model) {
 
     // 에디터 내용 - 스타일이 적용된 라인들로 렌더링
     let styled_lines = render_editor_content(&model.editor_state, palette);
-    let text = Paragraph::new(styled_lines).wrap(Wrap {
-        trim: false,
-    });
-    f.render_widget(text, editor_chunks[1]);
-
     // 커서 표시
     let display_width: u16 = if model.editor_state.cursor_line < model.editor_state.content.len() {
         model.editor_state.content[model.editor_state.cursor_line]
@@ -77,19 +72,35 @@ pub fn render(f: &mut Frame, model: &Model) {
     } else {
         0
     };
-    let cursor_x = editor_chunks[1].x + display_width;
-    let cursor_y = editor_chunks[1].y + model.editor_state.cursor_line as u16;
-    if !model.show_settings && !model.show_error_popup {
+    let scroll_x = display_width.saturating_sub(editor_chunks[1].width.saturating_sub(1));
+    let scroll_y = model
+        .editor_state
+        .cursor_line
+        .saturating_sub(usize::from(editor_chunks[1].height.saturating_sub(1)))
+        .min(u16::MAX as usize) as u16;
+    f.render_widget(Paragraph::new(styled_lines).scroll((scroll_y, scroll_x)), editor_chunks[1]);
+    let cursor_x = editor_chunks[1].x + display_width - scroll_x;
+    let cursor_y = editor_chunks[1].y + (model.editor_state.cursor_line as u16).saturating_sub(scroll_y);
+    if !model.show_settings && !model.show_error_popup && editor_chunks[1].width > 0 && editor_chunks[1].height > 0 {
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
     // 하단바: 상태 정보와 키바인딩 표시
-    let mode_text = localize_status(build_status_text(&model.editor_state), lang);
-    let keybindings = lang.tr(match model.editor_state.submode {
-        | None => crate::i18n::Text::EditorKeys,
-        | Some(EditorSubMode::CtrlX) => crate::i18n::Text::CommandKeys,
-        | Some(EditorSubMode::Search) => crate::i18n::Text::SearchKeys,
-    });
+    let helix = model.settings.keybindings == crate::settings::Keybindings::Helix;
+    let mode_text = if helix {
+        super::helix::status(&model.editor_state)
+    } else {
+        localize_status(build_status_text(&model.editor_state), lang)
+    };
+    let keybindings = if helix {
+        super::helix::help(&model.editor_state, lang)
+    } else {
+        lang.tr(match model.editor_state.submode {
+            | None => crate::i18n::Text::EditorKeys,
+            | Some(EditorSubMode::CtrlX) => crate::i18n::Text::CommandKeys,
+            | Some(EditorSubMode::Search) => crate::i18n::Text::SearchKeys,
+        })
+    };
     let status_text = format!(
         "{} | F2:{} · {} / {}\n{}",
         mode_text,
@@ -102,6 +113,29 @@ pub fn render(f: &mut Frame, model: &Model) {
         trim: false,
     });
     f.render_widget(statusbar, editor_chunks[2]);
+    if helix
+        && matches!(
+            model.editor_state.helix.prefix,
+            Some(super::helix::Prefix::Command | super::helix::Prefix::Search)
+        )
+        && !model.show_settings
+        && !model.show_error_popup
+        && editor_chunks[2].width > 0
+        && editor_chunks[2].height > 0
+    {
+        let prompt_width: usize = model
+            .editor_state
+            .helix
+            .prompt
+            .chars()
+            .take(model.editor_state.helix.prompt_cursor)
+            .map(|c| UnicodeWidthChar::width(c).unwrap_or(0))
+            .sum();
+        f.set_cursor_position((
+            editor_chunks[2].x + (prompt_width + 1).min(usize::from(editor_chunks[2].width - 1)) as u16,
+            editor_chunks[2].y,
+        ));
+    }
 
     // 오른쪽: 일기 미리보기
     let content = model.editor_state.get_content();

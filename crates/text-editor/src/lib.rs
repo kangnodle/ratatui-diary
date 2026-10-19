@@ -224,7 +224,7 @@ impl TextEditor {
         self.content = if content.is_empty() {
             vec![String::new()]
         } else {
-            content.lines().map(String::from).collect()
+            content.split('\n').map(|line| line.strip_suffix('\r').unwrap_or(line).to_string()).collect()
         };
         self.cursor_line = 0;
         self.cursor_col = 0;

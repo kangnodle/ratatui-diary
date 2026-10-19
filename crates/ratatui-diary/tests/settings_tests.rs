@@ -54,6 +54,7 @@ fn preferences_round_trip_and_validate() {
             let settings = Settings {
                 language,
                 theme,
+                ..Default::default()
             };
             settings.save(&path).unwrap();
             assert_eq!(Settings::load(&path).unwrap(), settings);
@@ -99,6 +100,7 @@ fn every_language_and_theme_renders_screens_and_overlays() {
             model.settings = Settings {
                 language,
                 theme,
+                ..Default::default()
             };
             for screen in [Screen::Calendar, Screen::Editor] {
                 model.screen = screen;

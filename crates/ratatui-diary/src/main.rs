@@ -40,6 +40,9 @@ fn main() -> std::io::Result<()> {
     }
 
     // Terminal 초기화
+    if model.settings.keybindings == ratatui_diary::settings::Keybindings::Helix {
+        ratatui_diary::editor::helix::reset(&mut model.editor_state, true);
+    }
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -62,6 +65,7 @@ fn main() -> std::io::Result<()> {
 // 합치기 위해 io::Error를 쓰는 백엔드로 한정한다 (CrosstermBackend가 해당).
 fn run_app<B: Backend<Error = io::Error>>(terminal: &mut Terminal<B>, model: &mut Model) -> std::io::Result<()> {
     loop {
+        model.editor_state.viewport_height = usize::from(terminal.size()?.height.saturating_sub(4).max(1));
         // 렌더링
         terminal.draw(|f| app::view(f, model))?;
 

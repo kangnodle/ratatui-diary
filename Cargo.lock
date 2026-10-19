@@ -1267,6 +1267,7 @@ dependencies = [
  "markdown-render",
  "org-render",
  "ratatui",
+ "regex",
  "tempfile",
  "text-editor",
  "unicode-width 0.2.2",

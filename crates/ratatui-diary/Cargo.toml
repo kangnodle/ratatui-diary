@@ -10,6 +10,7 @@
   chrono              = { workspace = true }
   crossterm           = { workspace = true }
   ratatui             = { workspace = true }
+  regex               = { workspace = true }
   unicode-width       = { workspace = true }
 
   diary-storage   = { workspace = true }

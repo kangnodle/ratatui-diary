@@ -3,6 +3,7 @@
 //! 범용 텍스트 편집 로직은 `text-editor` 크레이트의 엔진에 위임하며,
 //! 여기서는 다이어리 고유의 편집 화면 동작만 다룬다.
 
+pub mod helix;
 pub mod keymap;
 pub mod state;
 pub mod update;

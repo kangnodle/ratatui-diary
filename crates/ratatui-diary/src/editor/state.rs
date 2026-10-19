@@ -17,6 +17,8 @@ pub enum EditorSubMode {
 /// (`Deref`/`DerefMut`로 투명하게 노출), 다이어리 고유의 상태인
 /// 편집 대상 날짜와 키 서브모드만 직접 보유한다.
 pub struct EditorState {
+    pub helix: super::helix::HelixState,
+    pub viewport_height: usize,
     pub editor: TextEditor,
     pub date: NaiveDate,
     pub submode: Option<EditorSubMode>,
@@ -28,6 +30,8 @@ pub struct EditorState {
 impl EditorState {
     pub fn new(date: NaiveDate) -> Self {
         Self {
+            helix: Default::default(),
+            viewport_height: 20,
             editor: TextEditor::new(),
             date,
             submode: None,

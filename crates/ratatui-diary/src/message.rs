@@ -1,7 +1,4 @@
-//! Emacs 스타일 키바인딩을 위한 메시지 타입
-//!
-//! 모드리스(modeless) 에디터로, Ctrl+/Alt+ 조합으로 명령을 실행하며
-//! 별도의 모드 전환 없이 항상 문자 입력이 가능합니다.
+//! 앱 메시지와 Emacs/Helix 편집 입력.
 
 use chrono::NaiveDate;
 use std::collections::HashSet;
@@ -11,9 +8,11 @@ pub enum Msg {
     Quit,
     ToggleSettings,
     SettingsMove,
+    SettingsMoveBack,
     SettingsChange(bool),
     SettingsSaveFailed(String),
     DismissError,
+    HelixKey(crossterm::event::KeyEvent),
 
     // 에디터 - 네비게이션
     EditorMoveLeft,

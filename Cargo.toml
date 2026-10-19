@@ -12,6 +12,7 @@
   crossterm           = "0.29.0"
   dirs                = "7.0.0"
   ratatui             = "0.30.2"
+  regex               = "1.13.1"
   strip-ansi-escapes  = "0.2.1"
   termimad            = "0.35.5"
   tempfile            = "3.27.0"

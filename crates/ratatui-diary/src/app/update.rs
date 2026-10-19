@@ -14,6 +14,7 @@ use chrono::NaiveDate;
 
 pub enum Command {
     Quit,
+    WriteAndQuit,
     BackToCalendar,
     SaveSettings,
     LoadDiary(NaiveDate),
@@ -28,7 +29,11 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             None
         },
         | Msg::SettingsMove => {
-            model.settings_row = 1 - model.settings_row;
+            model.settings_row = (model.settings_row + 1) % 3;
+            None
+        },
+        | Msg::SettingsMoveBack => {
+            model.settings_row = (model.settings_row + 2) % 3;
             None
         },
         | Msg::SettingsChange(forward) => {
@@ -39,12 +44,19 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
                     | Language::Korean => Language::English,
                     | Language::English => Language::Korean,
                 };
-            } else {
+            } else if model.settings_row == 1 {
                 model.settings.theme = match (model.settings.theme, forward) {
                     | (Theme::System, true) | (Theme::Light, false) => Theme::Dark,
                     | (Theme::Dark, true) | (Theme::System, false) => Theme::Light,
                     | _ => Theme::System,
                 };
+            } else {
+                use crate::settings::Keybindings;
+                model.settings.keybindings = match model.settings.keybindings {
+                    | Keybindings::Emacs => Keybindings::Helix,
+                    | Keybindings::Helix => Keybindings::Emacs,
+                };
+                editor::helix::reset(&mut model.editor_state, model.settings.keybindings == Keybindings::Helix);
             }
             Some(Command::SaveSettings)
         },
@@ -100,6 +112,9 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
                 model.editor_state.load_content(&content);
                 model.editor_state.submode = None;
                 model.editor_state.search_origin = None;
+                if model.settings.keybindings == crate::settings::Keybindings::Helix {
+                    editor::helix::reset(&mut model.editor_state, true);
+                }
             }
             None
         },
@@ -126,6 +141,8 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             model.diary_entries.entries = entries;
             None
         },
+
+        | Msg::HelixKey(key) => editor::helix::update(key, model),
 
         // ===== 화면별 메시지 위임 =====
         | other => match model.screen {
