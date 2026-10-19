@@ -20,4 +20,5 @@
   # 워크스페이스 내부 크레이트
   diary-storage   = { path = "crates/diary-storage" }
   markdown-render = { path = "crates/markdown-render" }
+  org-render      = { path = "crates/org-render" }
   text-editor     = { path = "crates/text-editor" }

@@ -5,7 +5,7 @@
 //! - [`calendar`]: 달력 화면 (상태/업데이트/뷰/키맵)
 //! - [`editor`]  : 에디터 화면 (상태/업데이트/뷰/키맵)
 //!
-//! 범용 텍스트 편집·마크다운 렌더링·파일 저장은 워크스페이스의 별도
+//! 범용 텍스트 편집·Org/Markdown 렌더링·파일 저장은 워크스페이스의 별도
 //! 라이브러리 크레이트로 분리되어 있다.
 
 pub mod app;
@@ -17,6 +17,7 @@ pub mod message;
 pub use app::Model;
 pub use diary_storage as storage;
 pub use markdown_render as markdown;
+pub use org_render as org;
 pub use message::Msg;
 
 /// 기존 공개 경로(`ratatui_diary::model::*`) 호환을 위한 facade.

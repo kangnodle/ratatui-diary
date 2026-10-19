@@ -13,20 +13,97 @@ fn test_new_creates_entries_directory() {
 }
 
 #[test]
-fn test_save_creates_markdown_file() {
+fn test_save_creates_org_file() {
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
 
     let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
-    let content = "Test diary content";
+    let content = "* 오늘의 일기\n** 배운 것\nOrg-mode로 작성한 본문";
 
     storage.save(date, content).unwrap();
 
-    let file_path = temp.path().join("entries/2026-02-14.md");
+    let file_path = temp.path().join("entries/2026-02-14.org");
     assert!(file_path.exists());
 
     let saved = std::fs::read_to_string(file_path).unwrap();
     assert_eq!(saved, content);
+    assert!(!storage.is_markdown(date).unwrap());
+    assert!(!temp.path().join("entries/2026-02-14.md").exists());
+}
+
+#[test]
+fn legacy_markdown_keeps_its_file_format_when_loaded_saved_and_deleted() {
+    let temp = TempDir::new().unwrap();
+    let storage = Storage::with_dir(temp.path()).unwrap();
+    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let path = temp.path().join("entries/2026-02-14.md");
+    std::fs::write(&path, "# Original diary").unwrap();
+
+    assert!(storage.is_markdown(date).unwrap());
+    assert_eq!(storage.load(date).unwrap(), "# Original diary");
+    assert!(storage.scan_entries().unwrap().contains(&date));
+    storage.save(date, "# Updated diary").unwrap();
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "# Updated diary");
+    assert!(!path.with_extension("org").exists());
+    storage.delete(date).unwrap();
+    assert!(!path.exists());
+    assert!(storage.scan_entries().unwrap().is_empty());
+}
+
+#[test]
+fn org_takes_precedence_without_overwriting_legacy_markdown() {
+    let temp = TempDir::new().unwrap();
+    let storage = Storage::with_dir(temp.path()).unwrap();
+    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let org = temp.path().join("entries/2026-02-14.org");
+    let markdown = org.with_extension("md");
+    std::fs::write(&org, "* Org diary").unwrap();
+    std::fs::write(&markdown, "# Legacy diary").unwrap();
+
+    assert!(!storage.is_markdown(date).unwrap());
+    assert_eq!(storage.load(date).unwrap(), "* Org diary");
+    storage.save(date, "* Updated Org diary").unwrap();
+    assert_eq!(std::fs::read_to_string(&org).unwrap(), "* Updated Org diary");
+    assert_eq!(std::fs::read_to_string(&markdown).unwrap(), "# Legacy diary");
+    assert_eq!(storage.scan_entries().unwrap().len(), 1);
+    storage.delete(date).unwrap();
+    assert!(!org.exists());
+    assert!(!markdown.exists());
+    assert!(storage.scan_entries().unwrap().is_empty());
+}
+
+#[test]
+fn scanning_accepts_org_and_markdown_and_ignores_other_files_and_directories() {
+    let temp = TempDir::new().unwrap();
+    let storage = Storage::with_dir(temp.path()).unwrap();
+    let entries = temp.path().join("entries");
+    for name in ["2026-02-14.org", "2026-02-14.md", "2026-02-15.md", "2026-02-30.org", "notes.org", "2026-02-16.txt", "2026-02-17.org.bak"] {
+        std::fs::write(entries.join(name), "test").unwrap();
+    }
+    std::fs::create_dir(entries.join("2026-02-18.org")).unwrap();
+    let dates = storage.scan_entries().unwrap();
+    assert_eq!(dates.len(), 2);
+    assert!(dates.contains(&NaiveDate::from_ymd_opt(2026, 2, 14).unwrap()));
+    assert!(dates.contains(&NaiveDate::from_ymd_opt(2026, 2, 15).unwrap()));
+}
+
+#[test]
+fn org_io_errors_do_not_fall_back_to_or_overwrite_markdown() {
+    let temp = TempDir::new().unwrap();
+    let storage = Storage::with_dir(temp.path()).unwrap();
+    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let org = temp.path().join("entries/2026-02-14.org");
+    let markdown = org.with_extension("md");
+    std::fs::write(&markdown, "# Legacy diary").unwrap();
+    std::fs::write(&org, [0xff]).unwrap();
+    assert_eq!(storage.load(date).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+
+    std::fs::remove_file(&org).unwrap();
+    std::fs::create_dir(&org).unwrap();
+    assert!(storage.load(date).is_err());
+    assert!(storage.save(date, "* Must not overwrite legacy").is_err());
+    assert!(storage.delete(date).is_err());
+    assert_eq!(std::fs::read_to_string(markdown).unwrap(), "# Legacy diary");
 }
 
 #[test]

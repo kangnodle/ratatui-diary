@@ -10,6 +10,7 @@ pub enum Text {
     Settings,
     LanguageName,
     MarkdownPreview,
+    OrgPreview,
     EmptyDiary,
     Diary,
     UnknownError,
@@ -45,6 +46,7 @@ impl Language {
             | Text::Settings => ("설정", "Settings"),
             | Text::LanguageName => ("한국어", "English"),
             | Text::MarkdownPreview => ("Markdown 미리보기", "Markdown preview"),
+            | Text::OrgPreview => ("Org 미리보기", "Org preview"),
             | Text::EmptyDiary => (
                 "작성된 다이어리가 없습니다.\n\nEnter를 눌러 새로 작성하세요.",
                 "No diary entry.\n\nPress Enter to start writing.",

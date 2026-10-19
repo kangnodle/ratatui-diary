@@ -32,18 +32,26 @@ impl Storage {
     pub fn new_with_none_dir() -> io::Result<Self> { Self::new_impl(None) }
 
     pub fn save(&self, date: NaiveDate, content: &str) -> io::Result<()> {
-        let path = self.get_path(date);
+        let path = self.get_path(date)?;
         fs::write(path, content)
     }
 
     pub fn load(&self, date: NaiveDate) -> io::Result<String> {
-        let path = self.get_path(date);
+        let path = self.get_path(date)?;
         fs::read_to_string(path)
     }
 
     pub fn delete(&self, date: NaiveDate) -> io::Result<()> {
-        let path = self.get_path(date);
-        fs::remove_file(path)
+        let path = self.get_path(date)?;
+        fs::remove_file(&path)?;
+        // Remove a shadowed legacy entry too, so a deleted date cannot reappear.
+        if path.extension().is_some_and(|ext| ext == "org") {
+            match fs::remove_file(path.with_extension("md")) {
+                | Err(e) if e.kind() == io::ErrorKind::NotFound => {},
+                | result => result?,
+            }
+        }
+        Ok(())
     }
 
     pub fn scan_entries(&self) -> io::Result<HashSet<NaiveDate>> {
@@ -51,6 +59,9 @@ impl Storage {
 
         for entry in fs::read_dir(&self.entries_dir)? {
             let entry = entry?;
+            if !entry.file_type()?.is_file() {
+                continue;
+            }
             if let Some(date) = parse_filename(entry.file_name()) {
                 entries.insert(date);
             }
@@ -59,10 +70,19 @@ impl Storage {
         Ok(entries)
     }
 
-    fn get_path(&self, date: NaiveDate) -> PathBuf { self.entries_dir.join(format!("{}.md", date)) }
+    /// Existing Markdown entries keep their format; new dates default to Org.
+    pub fn is_markdown(&self, date: NaiveDate) -> io::Result<bool> {
+        Ok(!self.entries_dir.join(format!("{date}.org")).try_exists()? && self.entries_dir.join(format!("{date}.md")).try_exists()?)
+    }
+
+    fn get_path(&self, date: NaiveDate) -> io::Result<PathBuf> {
+        let extension = if self.is_markdown(date)? { "md" } else { "org" };
+        Ok(self.entries_dir.join(format!("{date}.{extension}")))
+    }
 }
 
 fn parse_filename(filename: OsString) -> Option<NaiveDate> {
-    let name = filename.to_str()?.strip_suffix(".md")?;
+    let filename = filename.to_str()?;
+    let name = filename.strip_suffix(".org").or_else(|| filename.strip_suffix(".md"))?;
     NaiveDate::parse_from_str(name, "%Y-%m-%d").ok()
 }

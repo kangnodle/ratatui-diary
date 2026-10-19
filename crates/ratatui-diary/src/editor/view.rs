@@ -2,8 +2,7 @@
 
 use crate::{app::Model,
             editor::state::{EditorState,
-                            EditorSubMode},
-            markdown::render_to_text};
+                            EditorSubMode}};
 use ratatui::{Frame,
               layout::{Constraint,
                        Direction,
@@ -40,7 +39,7 @@ pub fn render(f: &mut Frame, model: &Model) {
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage(50), // 왼쪽: 에디터
-            Constraint::Percentage(50), // 오른쪽: Markdown 미리보기
+            Constraint::Percentage(50), // 오른쪽: 일기 미리보기
         ])
         .split(f.area());
 
@@ -104,21 +103,27 @@ pub fn render(f: &mut Frame, model: &Model) {
     });
     f.render_widget(statusbar, editor_chunks[2]);
 
-    // 오른쪽: Markdown 미리보기
+    // 오른쪽: 일기 미리보기
     let content = model.editor_state.get_content();
-    render_markdown_preview(f, main_chunks[1], &content, model);
+    render_diary_preview(f, main_chunks[1], &content, model);
 }
 
-fn render_markdown_preview(f: &mut Frame, area: Rect, markdown: &str, model: &Model) {
-    let rendered_text = render_to_text(markdown);
+fn render_diary_preview(f: &mut Frame, area: Rect, content: &str, model: &Model) {
+    let markdown = model.storage.is_markdown(model.editor_state.date).unwrap_or(false);
+    let (rendered_text, title) = if markdown {
+        (crate::markdown::render_to_text(content), crate::i18n::Text::MarkdownPreview)
+    } else {
+        (crate::org::render_to_text(content), crate::i18n::Text::OrgPreview)
+    };
 
     let preview = Paragraph::new(rendered_text)
         .block(
             Block::default()
-                .title(model.settings.language.tr(crate::i18n::Text::MarkdownPreview))
+                .title(model.settings.language.tr(title))
                 .borders(Borders::ALL)
                 .border_style(Style::default().fg(model.settings.theme.palette().accent)),
         )
+        .style(model.settings.theme.palette().base())
         .wrap(Wrap {
             trim: false,
         });

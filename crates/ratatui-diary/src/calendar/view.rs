@@ -72,16 +72,21 @@ pub fn render(f: &mut Frame, model: &Model) {
         | Err(_) => lang.tr(crate::i18n::Text::EmptyDiary).to_string(),
     };
 
+    let preview_text = if model.storage.is_markdown(selected_date).unwrap_or(false) {
+        crate::markdown::render_to_text(&preview_content)
+    } else {
+        crate::org::render_to_text(&preview_content)
+    };
     render_preview_pane(
         f,
         main_chunks[1],
-        &preview_content,
+        preview_text,
         &format!("{}: {}", lang.tr(crate::i18n::Text::Diary), selected_date),
         palette,
     );
 }
 
-fn render_preview_pane(f: &mut Frame, area: Rect, content: &str, title: &str, palette: crate::settings::Palette) {
+fn render_preview_pane(f: &mut Frame, area: Rect, content: ratatui::text::Text<'_>, title: &str, palette: crate::settings::Palette) {
     let text = Paragraph::new(content)
         .block(
             Block::default()

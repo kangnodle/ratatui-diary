@@ -93,7 +93,7 @@ fn popup_changes_save_immediately_and_preserve_editor_state() {
 fn every_language_and_theme_renders_screens_and_overlays() {
     let dir = TempDir::new().unwrap();
     let mut model = model(&dir);
-    model.editor_state.load_content("# 한글 diary\nhello");
+    model.editor_state.load_content("* 한글 diary\nhello");
     for language in [Language::Korean, Language::English] {
         for theme in [Theme::System, Theme::Dark, Theme::Light] {
             model.settings = Settings {
@@ -110,7 +110,7 @@ fn every_language_and_theme_renders_screens_and_overlays() {
                     assert!(text.contains(language.text("작성된 다이어리가 없습니다", "No diary entry")));
                     assert!(text.contains(language.text("일", "Sun")));
                 } else {
-                    assert!(text.contains(language.text("Markdown 미리보기", "Markdown preview")));
+                    assert!(text.contains(language.text("Org 미리보기", "Org preview")));
                 }
                 model.show_settings = true;
                 let (text, _) = rendered(&model, 160, 30);

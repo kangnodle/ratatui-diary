@@ -976,6 +976,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "org-render"
+version = "0.1.0"
+dependencies = [
+ "ratatui",
+]
+
+[[package]]
 name = "palette"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1258,6 +1265,7 @@ dependencies = [
  "diary-storage",
  "dirs",
  "markdown-render",
+ "org-render",
  "ratatui",
  "tempfile",
  "text-editor",
