@@ -99,7 +99,7 @@ fn render_settings(f: &mut Frame, model: &Model) {
             } else {
                 palette.base()
             };
-            ratatui::text::Line::styled(format!("{} {}", if i == model.settings_row { "▶" } else { " " }, value), style)
+            ratatui::text::Line::styled(format!("{} {}", if i == model.settings_row { ">" } else { " " }, value), style)
         })
         .collect();
     lines.push("".into());

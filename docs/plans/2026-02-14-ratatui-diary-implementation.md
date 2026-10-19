@@ -1760,10 +1760,10 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
 ## 기능
 
-- 📅 월간 달력 뷰
-- ✍️ Vi 모드 텍스트 에디터
-- 💾 Markdown 파일 자동 저장
-- 🎨 다이어리 작성 유무 시각적 표시
+- 월간 달력 뷰
+- Vi 모드 텍스트 에디터
+- Markdown 파일 자동 저장
+- 다이어리 작성 유무 시각적 표시
 
 ## 설치
 

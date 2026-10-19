@@ -398,7 +398,7 @@ fn test_calendar_preview_loads_diary() {
 let selected_date = model.calendar_state.selected_date;
 let preview_content = match model.storage.load(selected_date) {
     Ok(content) => content,
-    Err(_) => "📝 작성된 다이어리가 없습니다.\n\nEnter를 눌러 새로 작성하세요.".to_string(),
+    Err(_) => "작성된 다이어리가 없습니다.\n\nEnter를 눌러 새로 작성하세요.".to_string(),
 };
 
 render_preview_pane(
@@ -981,11 +981,11 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ```markdown
 ## 기능
 
-- 📅 월간 달력 뷰
-- ✍️ Vi 모드 텍스트 에디터
-- 💾 Markdown 파일 자동 저장
-- 🎨 다이어리 작성 유무 시각적 표시
-- 👁️ 실시간 Markdown 미리보기 (달력 & 에디터)
+- 월간 달력 뷰
+- Vi 모드 텍스트 에디터
+- Markdown 파일 자동 저장
+- 다이어리 작성 유무 시각적 표시
+- 실시간 Markdown 미리보기 (달력 & 에디터)
 
 ### 미리보기 기능
 

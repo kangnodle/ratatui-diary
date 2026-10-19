@@ -673,7 +673,7 @@ mod view_rendering_complete {
         // Given: 유니코드 콘텐츠가 있는 에디터
         let (_temp, mut model) = create_test_model();
         model.screen = Screen::Editor;
-        model.editor_state.content = vec!["한글 테스트 🎉".to_string(), "日本語テスト".to_string(), "Emoji: 😀 🎯 ✨".to_string()];
+        model.editor_state.content = vec!["한글 테스트".to_string(), "日本語テスト".to_string(), "Unicode: café 𠮷".to_string()];
         let mut terminal = setup_terminal();
 
         // When: 렌더링

@@ -163,7 +163,7 @@ ratatui-diary 애플리케이션에 실시간 미리보기 기능을 추가합�
 ```rust
 let preview_content = match storage.load(selected_date) {
     Ok(content) => content,
-    Err(_) => "📝 작성된 다이어리가 없습니다.\n\nEnter를 눌러 새로 작성하세요.".to_string(),
+    Err(_) => "작성된 다이어리가 없습니다.\n\nEnter를 눌러 새로 작성하세요.".to_string(),
 };
 ```
 
@@ -181,7 +181,7 @@ pub fn render_to_text(markdown: &str) -> Text<'static> {
         Ok(rendered) => rendered,
         Err(e) => {
             // Fallback: 원본 텍스트 그대로 표시
-            Text::raw(format!("⚠️  Markdown 렌더링 실패\n\n{}", markdown))
+            Text::raw(format!("Markdown 렌더링 실패\n\n{}", markdown))
         }
     }
 }
