@@ -679,16 +679,12 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
         return None;
     }
     if let KeyCode::Char(ch @ '0' ..= '9') = key.code {
+        let digit = match ch.to_digit(10) {
+            | Some(digit) => digit as usize,
+            | None => return None,
+        };
         // shortcut: counts cap at 10,000; revisit for large batch edits.
-        state.helix.count = Some(
-            state
-                .helix
-                .count
-                .unwrap_or(0)
-                .saturating_mul(10)
-                .saturating_add(ch.to_digit(10).unwrap() as usize)
-                .min(10_000),
-        );
+        state.helix.count = Some(state.helix.count.unwrap_or(0).saturating_mul(10).saturating_add(digit).min(10_000));
         return None;
     }
     let count_given = state.helix.count.is_some();
