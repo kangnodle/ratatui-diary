@@ -154,9 +154,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
- "js-sys",
  "num-traits",
- "wasm-bindgen",
  "windows-link",
 ]
 
@@ -411,10 +409,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "diary-application"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "diary-domain",
+ "regex",
+ "text-editor",
+]
+
+[[package]]
+name = "diary-domain"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+]
+
+[[package]]
+name = "diary-runtime"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "diary-application",
+ "diary-storage",
+ "tempfile",
+]
+
+[[package]]
 name = "diary-storage"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "diary-domain",
  "dirs",
  "tempfile",
 ]
@@ -1262,14 +1288,14 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "crossterm",
+ "diary-application",
+ "diary-domain",
+ "diary-runtime",
  "diary-storage",
- "dirs",
  "markdown-render",
  "org-render",
  "ratatui",
- "regex",
  "tempfile",
- "text-editor",
  "unicode-width 0.2.2",
 ]
 

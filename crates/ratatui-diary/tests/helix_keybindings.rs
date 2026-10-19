@@ -1,10 +1,11 @@
+mod common;
+use crate::common::TestApp;
 use crossterm::event::{KeyCode,
                        KeyEvent,
                        KeyModifiers};
 use ratatui::{Terminal,
               backend::TestBackend};
-use ratatui_diary::{Model,
-                    app,
+use ratatui_diary::{app,
                     editor::helix::{self,
                                     Mode},
                     model::Screen,
@@ -15,10 +16,10 @@ use ratatui_diary::{Model,
                     storage::Storage};
 use tempfile::TempDir;
 
-fn fixture(content: &str) -> (TempDir, Model) {
+fn fixture(content: &str) -> (TempDir, TestApp) {
     let dir = TempDir::new().unwrap();
-    let mut model = Model::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
-    model.settings_path = Some(dir.path().join("settings.conf"));
+    let mut model = TestApp::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
+    model.runtime.settings_path = Some(dir.path().join("settings.conf"));
     model.settings.keybindings = Keybindings::Helix;
     model.screen = Screen::Editor;
     model.editor_state.load_content(content);
@@ -26,43 +27,43 @@ fn fixture(content: &str) -> (TempDir, Model) {
     (dir, model)
 }
 
-fn key(model: &mut Model, code: KeyCode, modifiers: KeyModifiers) {
+fn key(model: &mut TestApp, code: KeyCode, modifiers: KeyModifiers) {
     if let Some(msg) = app::handle_key(KeyEvent::new(code, modifiers), model)
         && let Some(command) = app::update(model, msg)
     {
-        app::execute_command(command, model).unwrap();
+        crate::common::execute_command(command, model);
     }
 }
-fn keys(model: &mut Model, text: &str) {
+fn keys(model: &mut TestApp, text: &str) {
     for ch in text.chars() {
         key(model, KeyCode::Char(ch), KeyModifiers::NONE);
     }
 }
-fn esc(model: &mut Model) { key(model, KeyCode::Esc, KeyModifiers::NONE); }
-fn enter(model: &mut Model) { key(model, KeyCode::Enter, KeyModifiers::NONE); }
-fn command(model: &mut Model, text: &str) {
+fn esc(model: &mut TestApp) { key(model, KeyCode::Esc, KeyModifiers::NONE); }
+fn enter(model: &mut TestApp) { key(model, KeyCode::Enter, KeyModifiers::NONE); }
+fn command(model: &mut TestApp, text: &str) {
     keys(model, &format!(":{text}"));
     enter(model);
 }
-fn selected(model: &Model) -> String { model.editor_state.get_selected_text().unwrap_or_default() }
-fn point(model: &Model) -> (usize, usize) { (model.editor_state.cursor_line, model.editor_state.cursor_col) }
+fn selected(model: &TestApp) -> String { model.editor_state.get_selected_text().unwrap_or_default() }
+fn point(model: &TestApp) -> (usize, usize) { (model.editor_state.cursor_line, model.editor_state.cursor_col) }
 
 #[test]
 fn preferences_are_backward_compatible_and_persist_both_keymaps() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("settings.conf");
     std::fs::write(&path, "language=en\ntheme=dark\n").unwrap();
-    assert_eq!(Settings::load(&path).unwrap().keybindings, Keybindings::Emacs);
+    assert_eq!(diary_storage::settings::load(&path).unwrap().keybindings, Keybindings::Emacs);
     for mode in [Keybindings::Emacs, Keybindings::Helix] {
         let settings = Settings {
             keybindings: mode,
-            ..Settings::load(&path).unwrap()
+            ..diary_storage::settings::load(&path).unwrap()
         };
-        settings.save(&path).unwrap();
-        assert_eq!(Settings::load(&path).unwrap(), settings);
+        diary_storage::settings::save(settings, &path).unwrap();
+        assert_eq!(diary_storage::settings::load(&path).unwrap(), settings);
     }
     std::fs::write(&path, "keybindings=vim\n").unwrap();
-    assert_eq!(Settings::load(&path).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(diary_storage::settings::load(&path).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
 }
 
 #[test]
@@ -78,7 +79,12 @@ fn switching_from_settings_preserves_inserted_text_and_undo_history() {
     assert_eq!(model.editor_state.get_content(), "한글原文");
     assert_eq!(point(&model), (0, 2));
     assert!(model.editor_state.is_modified);
-    assert_eq!(Settings::load(model.settings_path.as_deref().unwrap()).unwrap().keybindings, Keybindings::Emacs);
+    assert_eq!(
+        diary_storage::settings::load(model.runtime.settings_path.as_deref().unwrap())
+            .unwrap()
+            .keybindings,
+        Keybindings::Emacs
+    );
     esc(&mut model);
     key(&mut model, KeyCode::Char('/'), KeyModifiers::CONTROL);
     assert_eq!(model.editor_state.get_content(), "原文");
@@ -409,7 +415,7 @@ fn writing_legacy_markdown_from_helix_preserves_its_format() {
     let (dir, mut model) = fixture("");
     let path = dir.path().join(format!("entries/{}.md", model.editor_state.date));
     std::fs::write(&path, "# Existing diary\n").unwrap();
-    app::execute_command(app::Command::LoadDiary(model.editor_state.date), &mut model).unwrap();
+    crate::common::execute_command(app::Command::LoadDiary(model.editor_state.date), &mut model);
     keys(&mut model, "A updated");
     esc(&mut model);
     command(&mut model, "w");

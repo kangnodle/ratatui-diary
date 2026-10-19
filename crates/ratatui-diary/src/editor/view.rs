@@ -33,7 +33,7 @@ pub fn build_editor_keybindings(state: &EditorState) -> String {
 
 pub fn render(f: &mut Frame, model: &Model) {
     let lang = model.settings.language;
-    let palette = model.settings.theme.palette();
+    let palette = crate::theme::palette(model.settings.theme);
     // 메인 레이아웃: 수평 분할 (50:50)
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -143,7 +143,7 @@ pub fn render(f: &mut Frame, model: &Model) {
 }
 
 fn render_diary_preview(f: &mut Frame, area: Rect, content: &str, model: &Model) {
-    let markdown = model.storage.is_markdown(model.editor_state.date).unwrap_or(false);
+    let markdown = model.editor_state.format == diary_domain::EntryFormat::Markdown;
     let (rendered_text, title) = if markdown {
         (crate::markdown::render_to_text(content), crate::i18n::Text::MarkdownPreview)
     } else {
@@ -155,9 +155,9 @@ fn render_diary_preview(f: &mut Frame, area: Rect, content: &str, model: &Model)
             Block::default()
                 .title(model.settings.language.tr(title))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(model.settings.theme.palette().accent)),
+                .border_style(Style::default().fg(crate::theme::palette(model.settings.theme).accent)),
         )
-        .style(model.settings.theme.palette().base())
+        .style(crate::theme::palette(model.settings.theme).base())
         .wrap(Wrap {
             trim: false,
         });

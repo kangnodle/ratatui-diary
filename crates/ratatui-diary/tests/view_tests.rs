@@ -1,6 +1,7 @@
+mod common;
+use crate::common::TestApp;
 use chrono::NaiveDate;
 use ratatui_diary::{model::{EditorSubMode,
-                            Model,
                             Screen,
                             Selection},
                     storage::Storage};
@@ -18,13 +19,13 @@ fn test_calendar_preview_loads_from_storage() {
     let _ = storage.save(test_date, "테스트 다이어리 내용");
 
     let entries = storage.scan_entries().unwrap();
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
 
     // 달력 화면으로 돌아옴
     model.calendar_state.selected_date = test_date;
 
     // When: 저장된 날짜에 대해 Storage.load() 호출
-    let content = model.storage.load(test_date);
+    let content = model.runtime.storage.load(test_date);
 
     // Then: 저장된 내용이 로드됨
     assert!(content.is_ok());
@@ -39,10 +40,10 @@ fn test_calendar_preview_shows_empty_message() {
     let test_date = NaiveDate::from_ymd_opt(2026, 1, 1).unwrap();
 
     let entries = HashSet::new();
-    let model = Model::new(entries, storage);
+    let model = TestApp::new(entries, storage);
 
     // When: 저장되지 않은 날짜에 대해 Storage.load() 호출
-    let content = model.storage.load(test_date);
+    let content = model.runtime.storage.load(test_date);
 
     // Then: 에러 반환
     assert!(content.is_err());
@@ -54,7 +55,7 @@ fn test_editor_content_updates_preview() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = HashSet::new();
 
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
 
     // 에디터로 전환 (Emacs — 항상 입력 가능)
     model.screen = Screen::Editor;
@@ -77,11 +78,11 @@ fn test_calendar_preview_empty_diary() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = HashSet::new();
 
-    let model = Model::new(entries, storage);
+    let model = TestApp::new(entries, storage);
 
     // 다이어리가 없는 날짜 선택
     let date = model.calendar_state.selected_date;
-    let result = model.storage.load(date);
+    let result = model.runtime.storage.load(date);
 
     // 로드 실패 시 에러 반환 (view에서 처리)
     assert!(result.is_err());
@@ -94,7 +95,7 @@ fn test_editor_selection_highlight_state() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = HashSet::new();
 
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
     model.screen = Screen::Editor;
 
     // 테스트 텍스트 작성
@@ -129,7 +130,7 @@ fn test_editor_search_matches_state() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = HashSet::new();
 
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
     model.screen = Screen::Editor;
 
     model.editor_state.content = vec!["test text test".to_string(), "another test".to_string()];
@@ -159,7 +160,7 @@ fn test_editor_submode_display_state() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = HashSet::new();
 
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
     model.screen = Screen::Editor;
 
     // When: CtrlX 모드 활성화
@@ -184,7 +185,7 @@ fn test_editor_multi_line_selection_highlight() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = HashSet::new();
 
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
     model.screen = Screen::Editor;
 
     model.editor_state.content = vec!["First line".to_string(), "Second line".to_string(), "Third line".to_string()];
@@ -218,7 +219,7 @@ fn test_editor_search_navigation_updates_selection() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = HashSet::new();
 
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
     model.screen = Screen::Editor;
 
     model.editor_state.content = vec!["test abc test".to_string(), "test def".to_string()];
@@ -246,11 +247,11 @@ fn test_editor_search_navigation_updates_selection() {
 
 #[cfg(test)]
 mod view_rendering_complete {
+    use crate::common::TestApp;
     use chrono::NaiveDate;
     use ratatui::{Terminal,
                   backend::TestBackend};
-    use ratatui_diary::{Model,
-                        model::{EditorSubMode,
+    use ratatui_diary::{model::{EditorSubMode,
                                 Screen,
                                 Selection},
                         storage::Storage,
@@ -259,10 +260,10 @@ mod view_rendering_complete {
     use tempfile::TempDir;
 
     // 헬퍼 함수: 테스트 모델 생성
-    fn create_test_model() -> (TempDir, Model) {
+    fn create_test_model() -> (TempDir, TestApp) {
         let temp = TempDir::new().unwrap();
         let storage = Storage::with_dir(temp.path()).unwrap();
-        (temp, Model::new(HashSet::new(), storage))
+        (temp, TestApp::new(HashSet::new(), storage))
     }
 
     fn setup_terminal() -> Terminal<TestBackend> {

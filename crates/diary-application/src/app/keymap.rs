@@ -7,19 +7,12 @@ use crate::{app::{Model,
                   Screen},
             calendar,
             editor,
+            input::{KeyCode,
+                    KeyEvent,
+                    KeyModifiers},
             message::Msg};
-use crossterm::event::{KeyCode,
-                       KeyEvent,
-                       KeyEventKind,
-                       KeyModifiers};
 
 pub fn handle_key(key: KeyEvent, model: &Model) -> Option<Msg> {
-    // Windows reports both key press and key release events. Handling the
-    // release as input would insert every character twice.
-    if key.kind == KeyEventKind::Release {
-        return None;
-    }
-
     let cancel = key.code == KeyCode::Esc
         || (key.code == KeyCode::Char('g') && key.modifiers == KeyModifiers::CONTROL)
         || (model.settings.keybindings == crate::settings::Keybindings::Helix && key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL);

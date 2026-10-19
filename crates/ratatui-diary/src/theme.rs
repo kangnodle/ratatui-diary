@@ -1,14 +1,7 @@
 //! Semantic UI colors shared by all screens and overlays.
-use crate::settings::Language;
+use diary_domain::settings::Theme;
 use ratatui::style::{Color,
                      Style};
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum Theme {
-    #[default]
-    System,
-    Dark,
-    Light,
-}
 #[derive(Clone, Copy)]
 pub struct Palette {
     pub fg: Color,
@@ -22,38 +15,27 @@ pub struct Palette {
     pub search: Color,
     pub current_search: Color,
 }
-impl Theme {
-    pub fn label(self, language: Language) -> &'static str {
-        use crate::i18n::Text;
-        language.tr(match self {
-            | Self::System => Text::System,
-            | Self::Dark => Text::Dark,
-            | Self::Light => Text::Light,
-        })
-    }
-
-    pub fn palette(self) -> Palette {
-        let light = self == Self::Light;
-        Palette {
-            fg: match self {
-                | Self::System => Color::Reset,
-                | Self::Dark => Color::Rgb(225, 230, 240),
-                | Self::Light => Color::Rgb(30, 35, 45),
-            },
-            bg: match self {
-                | Self::System => Color::Reset,
-                | Self::Dark => Color::Rgb(24, 28, 36),
-                | Self::Light => Color::Rgb(250, 250, 248),
-            },
-            accent: if light { Color::Rgb(0, 85, 145) } else { Color::Cyan },
-            entry: if light { Color::Rgb(20, 110, 50) } else { Color::Green },
-            selected_fg: Color::White,
-            selected_bg: Color::Rgb(35, 80, 160),
-            error: if light { Color::Rgb(175, 20, 30) } else { Color::LightRed },
-            selection: if light { Color::Rgb(190, 210, 240) } else { Color::DarkGray },
-            search: Color::Yellow,
-            current_search: Color::LightYellow,
-        }
+pub fn palette(theme: Theme) -> Palette {
+    let light = theme == Theme::Light;
+    Palette {
+        fg: match theme {
+            | Theme::System => Color::Reset,
+            | Theme::Dark => Color::Rgb(225, 230, 240),
+            | Theme::Light => Color::Rgb(30, 35, 45),
+        },
+        bg: match theme {
+            | Theme::System => Color::Reset,
+            | Theme::Dark => Color::Rgb(24, 28, 36),
+            | Theme::Light => Color::Rgb(250, 250, 248),
+        },
+        accent: if light { Color::Rgb(0, 85, 145) } else { Color::Cyan },
+        entry: if light { Color::Rgb(20, 110, 50) } else { Color::Green },
+        selected_fg: Color::White,
+        selected_bg: Color::Rgb(35, 80, 160),
+        error: if light { Color::Rgb(175, 20, 30) } else { Color::LightRed },
+        selection: if light { Color::Rgb(190, 210, 240) } else { Color::DarkGray },
+        search: Color::Yellow,
+        current_search: Color::LightYellow,
     }
 }
 impl Palette {

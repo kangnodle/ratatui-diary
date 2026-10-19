@@ -3,25 +3,19 @@
   edition.workspace = true
   version.workspace = true
 
-# TUI 애플리케이션 (TEA: model / message / update / view).
-# 추출된 라이브러리 크레이트를 조립하고 다이어리 고유 규칙을 보유한다.
+# Terminal presentation and composition root. Application policy lives inward.
 [dependencies]
-  dirs = { workspace = true }
-  chrono              = { workspace = true }
+  chrono              = { workspace = true, features = ["clock"] }
   crossterm           = { workspace = true }
   ratatui             = { workspace = true }
-  regex               = { workspace = true }
   unicode-width       = { workspace = true }
 
-  diary-storage   = { workspace = true }
-  markdown-render = { workspace = true }
-  org-render      = { workspace = true }
-  text-editor     = { workspace = true }
+  diary-application = { workspace = true }
+  diary-domain      = { workspace = true }
+  diary-runtime     = { workspace = true }
+  diary-storage     = { workspace = true }
+  markdown-render   = { workspace = true }
+  org-render        = { workspace = true }
 
 [dev-dependencies]
   tempfile = { workspace = true }
-
-# Avoid Windows installer detection for an executable named `update_tests.exe`.
-[[test]]
-  name = "diary_behavior_tests"
-  path = "tests/update_tests.rs"

@@ -1,11 +1,9 @@
 use chrono::NaiveDate;
-use ratatui_diary::{model::{CalendarState,
-                            EditorState,
-                            Model,
-                            Screen},
-                    storage::Storage};
+use diary_application::model::{CalendarState,
+                               EditorState,
+                               Model,
+                               Screen};
 use std::collections::HashSet;
-use tempfile::TempDir;
 
 #[test]
 fn test_next_month() {
@@ -74,12 +72,10 @@ fn test_load_content() {
 }
 
 #[test]
-fn test_model_with_storage() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
+fn test_model_without_io() {
     let entries = HashSet::new();
 
-    let model = Model::new(entries, storage);
+    let model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), entries);
     assert_eq!(model.screen, Screen::Calendar);
 }
 
@@ -130,7 +126,7 @@ fn test_kill_line_at_end_joins() {
 #[cfg(test)]
 mod selection_tests {
     use super::*;
-    use ratatui_diary::model::Selection;
+    use diary_application::model::Selection;
 
     #[test]
     fn test_selection_creation() {
@@ -256,14 +252,14 @@ mod selection_tests {
 #[cfg(test)]
 mod update_selection_tests {
     use super::*;
-    use ratatui_diary::{Msg,
-                        model::Selection,
-                        update};
+    use diary_application::{Msg,
+                            model::Selection,
+                            update};
 
     #[test]
     fn test_selection_toggle_on() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
-        let mut model = Model::new(HashSet::new(), Storage::new().unwrap());
+        let mut model = Model::new(date, HashSet::new());
         model.screen = Screen::Editor;
         model.editor_state = EditorState::new(date);
         model.editor_state.cursor_line = 0;
@@ -280,7 +276,7 @@ mod update_selection_tests {
     #[test]
     fn test_selection_toggle_off() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
-        let mut model = Model::new(HashSet::new(), Storage::new().unwrap());
+        let mut model = Model::new(date, HashSet::new());
         model.screen = Screen::Editor;
         model.editor_state = EditorState::new(date);
         model.editor_state.selection = Some(Selection {
@@ -298,7 +294,7 @@ mod update_selection_tests {
     #[test]
     fn test_select_line() {
         let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
-        let mut model = Model::new(HashSet::new(), Storage::new().unwrap());
+        let mut model = Model::new(date, HashSet::new());
         model.screen = Screen::Editor;
         model.editor_state = EditorState::new(date);
         model.editor_state.content = vec!["Hello World".to_string()];
@@ -411,7 +407,7 @@ mod word_navigation_tests {
 #[cfg(test)]
 mod multibyte_char_tests {
     use super::*;
-    use ratatui_diary::model::Selection;
+    use diary_application::model::Selection;
 
     #[test]
     fn test_insert_korean_char() {
@@ -566,7 +562,7 @@ mod search_tests {
 mod days_in_month_tests {
     use chrono::{Datelike,
                  NaiveDate};
-    use ratatui_diary::model::CalendarState;
+    use diary_application::model::CalendarState;
 
     #[test]
     fn test_adjust_date_to_february_29_leap_year() {
@@ -617,7 +613,7 @@ mod days_in_month_tests {
 #[cfg(test)]
 mod editor_edge_cases {
     use super::*;
-    use ratatui_diary::model::Selection;
+    use diary_application::model::Selection;
 
     #[test]
     fn test_out_of_bounds_line_access() {

@@ -1,4 +1,7 @@
 use chrono::NaiveDate;
+use diary_domain::{DiaryEntry,
+                   EntryFormat};
+pub mod settings;
 use std::{collections::HashSet,
           ffi::OsString,
           fs,
@@ -36,9 +39,19 @@ impl Storage {
         fs::write(path, content)
     }
 
-    pub fn load(&self, date: NaiveDate) -> io::Result<String> {
+    pub fn load(&self, date: NaiveDate) -> io::Result<String> { self.load_entry(date).map(|entry| entry.content) }
+
+    pub fn load_entry(&self, date: NaiveDate) -> io::Result<DiaryEntry> {
         let path = self.get_path(date)?;
-        fs::read_to_string(path)
+        let format = if path.extension().is_some_and(|ext| ext == "md") {
+            EntryFormat::Markdown
+        } else {
+            EntryFormat::Org
+        };
+        Ok(DiaryEntry {
+            content: fs::read_to_string(path)?,
+            format,
+        })
     }
 
     pub fn delete(&self, date: NaiveDate) -> io::Result<()> {

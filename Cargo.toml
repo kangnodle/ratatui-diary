@@ -8,7 +8,7 @@
   version = "0.1.0"
 
 [workspace.dependencies]
-  chrono              = "0.4.45"
+  chrono              = { version = "0.4.45", default-features = false, features = ["std"] }
   crossterm           = "0.29.0"
   dirs                = "7.0.0"
   ratatui             = "0.30.2"
@@ -19,7 +19,10 @@
   unicode-width       = "0.2.2"
 
   # 워크스페이스 내부 크레이트
-  diary-storage   = { path = "crates/diary-storage" }
-  markdown-render = { path = "crates/markdown-render" }
-  org-render      = { path = "crates/org-render" }
-  text-editor     = { path = "crates/text-editor" }
+  diary-application = { path = "crates/diary-application" }
+  diary-domain      = { path = "crates/diary-domain" }
+  diary-runtime     = { path = "crates/diary-runtime" }
+  diary-storage     = { path = "crates/diary-storage" }
+  markdown-render   = { path = "crates/markdown-render" }
+  org-render        = { path = "crates/org-render" }
+  text-editor       = { path = "crates/text-editor" }

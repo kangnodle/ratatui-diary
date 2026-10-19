@@ -1,0 +1,12 @@
+[package]
+  name = "diary-runtime"
+  edition.workspace = true
+  version.workspace = true
+
+[dependencies]
+  chrono = { workspace = true, features = ["clock"] }
+  diary-application = { workspace = true }
+  diary-storage = { workspace = true }
+
+[dev-dependencies]
+  tempfile = { workspace = true }

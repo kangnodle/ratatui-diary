@@ -13,9 +13,7 @@ use crate::{app::{Model,
 use chrono::NaiveDate;
 
 pub enum Command {
-    Quit,
-    WriteAndQuit,
-    BackToCalendar,
+    LoadPreview(NaiveDate),
     SaveSettings,
     LoadDiary(NaiveDate),
     SaveDiary(NaiveDate, String),
@@ -67,7 +65,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         },
         | Msg::Quit => {
             model.editor_state.submode = None;
-            Some(Command::Quit)
+            super::navigate(model, super::Navigation::Quit, false)
         },
         | Msg::EditorEnterCtrlXMode => {
             model.editor_state.submode = Some(editor::state::EditorSubMode::CtrlX);
@@ -91,7 +89,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         },
         | Msg::EditorCtrlXBack if model.screen == Screen::Editor => {
             model.editor_state.submode = None;
-            Some(Command::BackToCalendar)
+            super::navigate(model, super::Navigation::Calendar, false)
         },
         | Msg::EditorUndo if model.editor_state.submode == Some(editor::state::EditorSubMode::CtrlX) => {
             model.editor_state.submode = None;
@@ -106,9 +104,10 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         },
 
         // ===== 파일 I/O 결과 =====
-        | Msg::LoadDiarySuccess(date, content) => {
+        | Msg::LoadDiarySuccess(date, content, format) => {
             if model.screen == Screen::Editor {
                 model.editor_state.date = date;
+                model.editor_state.format = format;
                 model.editor_state.load_content(&content);
                 model.editor_state.submode = None;
                 model.editor_state.search_origin = None;
@@ -123,11 +122,18 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             model.show_error_popup = true;
             None
         },
-        | Msg::SaveDiarySuccess => {
-            model.editor_state.is_modified = false;
+        | Msg::SaveDiarySuccess(date) => {
+            model.diary_entries.entries.insert(date);
+            if date == model.editor_state.date {
+                model.editor_state.is_modified = false;
+                if let Some(navigation) = model.pending_navigation.take() {
+                    return super::finish_navigation(model, navigation);
+                }
+            }
             None
         },
         | Msg::SaveDiaryFailed(error) => {
+            model.pending_navigation = None;
             model.error_message = Some(format!("{}: {}", model.settings.language.tr(crate::i18n::Text::SaveFailed), error));
             model.show_error_popup = true;
             None
@@ -135,10 +141,17 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         | Msg::DeleteDiarySuccess(date) => {
             model.diary_entries.entries.remove(&date);
             model.screen = Screen::Calendar;
-            None
+            Some(Command::LoadPreview(model.calendar_state.selected_date))
         },
         | Msg::RefreshIndex(entries) => {
             model.diary_entries.entries = entries;
+            None
+        },
+
+        | Msg::PreviewLoaded(date, entry) => {
+            if date == model.calendar_state.selected_date {
+                model.preview = entry.map(|entry| (date, entry));
+            }
             None
         },
 

@@ -315,17 +315,68 @@ Linux의 기본 경로는 `~/.local/share/ratatui-diary/entries/`입니다.
 
 ## 아키텍처
 
-ELM (Model-Update-View) 패턴 기반
+Cargo workspace 기반 모노레포이며, Clean Architecture의 의존성 방향을 따릅니다.
+안쪽의 도메인·애플리케이션은 파일 시스템, OS 경로, 시스템 시계, Ratatui, Crossterm에 의존하지 않습니다.
 
-- **Model**: 앱 상태
-- **Update**: 상태 업데이트 로직
-- **View**: UI 렌더링
+| crate | 책임 |
+|---|---|
+| `diary-domain` | 일기 내용·형식, 달력 규칙, 언어·테마·키맵 설정, 설정 문자열 파싱·직렬화 |
+| `text-editor` | 날짜·UI·저장소와 무관한 텍스트 편집 엔진 |
+| `diary-application` | 앱 상태, Emacs/Helix 입력 정책, 상태 전이, 부수효과 요청과 결과 처리 |
+| `diary-storage` | 일기·설정 파일 입출력과 OS 저장 경로 |
+| `diary-runtime` | 시작 시 시계·설정·목록 로드, 부수효과 명령 실행과 결과 전달 |
+| `org-render`, `markdown-render` | 문서를 Ratatui 미리보기 텍스트로 변환 |
+| `ratatui-diary` | 실행 진입점, 터미널 이벤트 변환, 화면·색상·커서 렌더링 |
+
+```mermaid
+flowchart TD
+    TUI[ratatui-diary] --> APP[diary-application]
+    TUI --> RT[diary-runtime]
+    TUI --> RENDER[org-render / markdown-render]
+    TUI --> DOMAIN[diary-domain]
+    RT --> APP
+    RT --> STORAGE[diary-storage]
+    STORAGE --> DOMAIN
+    APP --> DOMAIN
+    APP --> EDITOR[text-editor]
+```
+
+순수한 상태 전이는 `Model + Msg → Option<Command>` 형태입니다. `Model`의 변경은 입력에만 의존하며
+파일을 읽거나 시간을 조회하지 않습니다. `Runtime`이 명령을 실행하고 성공·실패 메시지를 돌려줍니다.
+저장 후 종료·달력 복귀 여부는 애플리케이션이 결정하므로, 저장 실패 시 편집 상태가 보존됩니다.
+별도 저장소 trait 대신 기존 `Command`/`Msg`를 입출력과의 interface로 사용합니다.
+
+미리보기 파일은 시작·날짜 이동·달력 복귀 시 로드하고, 뷰는 로드된 상태만 표시합니다.
+외부 편집기의 파일 변경은 해당 날짜를 다시 선택할 때 반영됩니다. 렌더링 반복 중 파일을 읽지 않습니다.
+현재 날짜는 실행부에서 주입하며 달력의 오늘 표시도 이 값을 사용합니다.
+
+내부 Rust interface는 다음과 같이 변경되었습니다. 실행 명령과 사용자 데이터 경로·파일 형식은 유지됩니다.
+
+```rust
+// 순수한 초기화: 테스트에서는 고정된 날짜와 목록을 주입
+let mut model = diary_application::Model::new(today, entries);
+let mut runtime = diary_runtime::Runtime::new(storage, settings_path);
+if let Some(command) = diary_application::update(&mut model, message) {
+    runtime.execute(command, &mut model);
+}
+```
+
+설정 파일 입출력은 `diary_storage::settings::{path, load, save}`, 순수한 문자열 변환은
+`diary_domain::settings::Settings::{parse, serialize}`에서 담당합니다.
+터미널 키는 `ratatui_diary::input::translate`를 거쳐 애플리케이션의 논리 입력 값으로 변환됩니다.
 
 ## 개발
 
 ```bash
 # 테스트 실행
-cargo test
+cargo test --workspace
+
+# 입출력·터미널 의존성 없이 순수 로직만 테스트
+cargo test -p diary-domain -p diary-application
+
+# 전체 포맷과 운영 코드 정적 검사
+cargo fmt --all -- --check
+cargo clippy --workspace -- -D warnings -D clippy::unwrap_used
 
 # 개발 모드 실행
 cargo run

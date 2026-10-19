@@ -1,11 +1,12 @@
+mod common;
+use crate::common::TestApp;
 use crossterm::event::{KeyCode,
                        KeyEvent,
                        KeyModifiers};
 use ratatui::{Terminal,
               backend::TestBackend,
               style::Color};
-use ratatui_diary::{Model,
-                    Msg,
+use ratatui_diary::{Msg,
                     app,
                     model::{EditorSubMode,
                             Screen},
@@ -15,19 +16,19 @@ use ratatui_diary::{Model,
                     storage::Storage};
 use tempfile::TempDir;
 
-fn model(dir: &TempDir) -> Model {
-    let mut model = Model::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
-    model.settings_path = Some(dir.path().join("config/settings.conf"));
+fn model(dir: &TempDir) -> TestApp {
+    let mut model = TestApp::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
+    model.runtime.settings_path = Some(dir.path().join("config/settings.conf"));
     model
 }
-fn press(model: &mut Model, code: KeyCode) {
-    if let Some(msg) = app::handle_key(KeyEvent::new(code, KeyModifiers::NONE), model) {
-        if let Some(cmd) = app::update(model, msg) {
-            app::execute_command(cmd, model).unwrap();
-        }
+fn press(model: &mut TestApp, code: KeyCode) {
+    if let Some(msg) = app::handle_key(KeyEvent::new(code, KeyModifiers::NONE), model)
+        && let Some(cmd) = app::update(model, msg)
+    {
+        crate::common::execute_command(cmd, model);
     }
 }
-fn rendered(model: &Model, width: u16, height: u16) -> (String, ratatui::buffer::Buffer) {
+fn rendered(model: &TestApp, width: u16, height: u16) -> (String, ratatui::buffer::Buffer) {
     let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
     terminal.draw(|f| app::view(f, model)).unwrap();
     let buffer = terminal.backend().buffer().clone();
@@ -48,7 +49,7 @@ fn rendered(model: &Model, width: u16, height: u16) -> (String, ratatui::buffer:
 fn preferences_round_trip_and_validate() {
     let dir = TempDir::new().unwrap();
     let path = dir.path().join("nested/settings.conf");
-    assert_eq!(Settings::load(&path).unwrap(), Settings::default());
+    assert_eq!(diary_storage::settings::load(&path).unwrap(), Settings::default());
     for language in [Language::Korean, Language::English] {
         for theme in [Theme::System, Theme::Dark, Theme::Light] {
             let settings = Settings {
@@ -56,12 +57,12 @@ fn preferences_round_trip_and_validate() {
                 theme,
                 ..Default::default()
             };
-            settings.save(&path).unwrap();
-            assert_eq!(Settings::load(&path).unwrap(), settings);
+            diary_storage::settings::save(settings, &path).unwrap();
+            assert_eq!(diary_storage::settings::load(&path).unwrap(), settings);
         }
     }
     std::fs::write(&path, "theme=invalid").unwrap();
-    assert_eq!(Settings::load(&path).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(diary_storage::settings::load(&path).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
 }
 
 #[test]
@@ -81,7 +82,10 @@ fn popup_changes_save_immediately_and_preserve_editor_state() {
     for theme in [Theme::Dark, Theme::Light, Theme::System] {
         press(&mut model, KeyCode::Right);
         assert_eq!(model.settings.theme, theme);
-        assert_eq!(Settings::load(model.settings_path.as_deref().unwrap()).unwrap(), model.settings);
+        assert_eq!(
+            diary_storage::settings::load(model.runtime.settings_path.as_deref().unwrap()).unwrap(),
+            model.settings
+        );
     }
     press(&mut model, KeyCode::Left);
     assert_eq!(model.settings.theme, Theme::Light);
@@ -107,7 +111,7 @@ fn every_language_and_theme_renders_screens_and_overlays() {
                 let (text, buffer) = rendered(&model, 160, 30);
                 assert!(text.contains("F2:"));
                 assert!(text.contains(language.text("설정", "Settings")));
-                assert_eq!(buffer[(159, 29)].bg, theme.palette().bg);
+                assert_eq!(buffer[(159, 29)].bg, ratatui_diary::theme::palette(theme).bg);
                 if screen == Screen::Calendar {
                     assert!(text.contains(language.text("작성된 다이어리가 없습니다", "No diary entry")));
                     assert!(text.contains(language.text("일", "Sun")));
@@ -125,8 +129,8 @@ fn every_language_and_theme_renders_screens_and_overlays() {
             }
         }
     }
-    assert_eq!(Theme::System.palette().bg, Color::Reset);
-    assert_eq!(Theme::System.palette().fg, Color::Reset);
+    assert_eq!(ratatui_diary::theme::palette(Theme::System).bg, Color::Reset);
+    assert_eq!(ratatui_diary::theme::palette(Theme::System).fg, Color::Reset);
 }
 
 #[test]
@@ -140,7 +144,7 @@ fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
         }
         model.calendar_state.selected_date = date;
         let command = app::update(&mut model, Msg::CalendarSelectDate).unwrap();
-        app::execute_command(command, &mut model).unwrap();
+        crate::common::execute_command(command, &mut model);
         assert_eq!(model.screen, Screen::Editor);
         assert_eq!(model.editor_state.get_content(), if legacy { "# Existing diary" } else { "" });
 
@@ -166,7 +170,7 @@ fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
 
         app::update(&mut model, Msg::EditorEnterCtrlXMode);
         let command = app::update(&mut model, Msg::EditorCtrlXSave).unwrap();
-        app::execute_command(command, &mut model).unwrap();
+        crate::common::execute_command(command, &mut model);
         assert!(!model.editor_state.is_modified);
         assert!(!model.show_error_popup);
         let extension = if legacy { "md" } else { "org" };
@@ -178,14 +182,14 @@ fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
 
         app::update(&mut model, Msg::EditorEnterCtrlXMode);
         let command = app::update(&mut model, Msg::EditorCtrlXBack).unwrap();
-        app::execute_command(command, &mut model).unwrap();
+        crate::common::execute_command(command, &mut model);
         assert_eq!(model.screen, Screen::Calendar);
         let (text, _) = rendered(&model, 160, 30);
         assert_eq!(text.contains("◉ Today"), !legacy);
         assert_eq!(text.contains("○ Lessons"), !legacy);
         assert!(text.contains("Diary body"));
         let command = app::update(&mut model, Msg::CalendarSelectDate).unwrap();
-        app::execute_command(command, &mut model).unwrap();
+        crate::common::execute_command(command, &mut model);
         assert_eq!(model.editor_state.get_content(), content);
     }
 }
@@ -195,7 +199,7 @@ fn save_failure_is_visible_and_error_popup_blocks_input() {
     let dir = TempDir::new().unwrap();
     let mut model = model(&dir);
     model.settings.language = Language::English;
-    model.settings_path = Some(dir.path().to_path_buf()); // Writing to a directory fails.
+    model.runtime.settings_path = Some(dir.path().to_path_buf()); // Writing to a directory fails.
     model.screen = Screen::Editor;
     press(&mut model, KeyCode::F(2));
     press(&mut model, KeyCode::Tab);

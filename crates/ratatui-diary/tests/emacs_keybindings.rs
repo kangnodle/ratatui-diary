@@ -1,40 +1,41 @@
+mod common;
+use crate::common::TestApp;
 use crossterm::event::{KeyCode,
                        KeyEvent,
                        KeyModifiers};
 use ratatui::{Terminal,
               backend::TestBackend};
-use ratatui_diary::{Model,
-                    app,
+use ratatui_diary::{app,
                     model::{EditorSubMode,
                             Screen},
                     settings::Language,
                     storage::Storage};
 use tempfile::TempDir;
 
-fn model(content: &str) -> (TempDir, Model) {
+fn model(content: &str) -> (TempDir, TestApp) {
     let dir = TempDir::new().unwrap();
-    let mut model = Model::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
+    let mut model = TestApp::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
     model.screen = Screen::Editor;
     model.editor_state.load_content(content);
     (dir, model)
 }
 
-fn key(model: &mut Model, code: KeyCode, modifiers: KeyModifiers) {
+fn key(model: &mut TestApp, code: KeyCode, modifiers: KeyModifiers) {
     if let Some(msg) = app::handle_key(KeyEvent::new(code, modifiers), model)
         && let Some(command) = app::update(model, msg)
     {
-        app::execute_command(command, model).unwrap();
+        crate::common::execute_command(command, model);
     }
 }
 
-fn ctrl(model: &mut Model, ch: char) { key(model, KeyCode::Char(ch), KeyModifiers::CONTROL); }
-fn alt(model: &mut Model, ch: char) { key(model, KeyCode::Char(ch), KeyModifiers::ALT); }
-fn type_text(model: &mut Model, text: &str) {
+fn ctrl(model: &mut TestApp, ch: char) { key(model, KeyCode::Char(ch), KeyModifiers::CONTROL); }
+fn alt(model: &mut TestApp, ch: char) { key(model, KeyCode::Char(ch), KeyModifiers::ALT); }
+fn type_text(model: &mut TestApp, text: &str) {
     for ch in text.chars() {
         key(model, KeyCode::Char(ch), KeyModifiers::NONE);
     }
 }
-fn cursor(model: &Model) -> (usize, usize) { (model.editor_state.cursor_line, model.editor_state.cursor_col) }
+fn cursor(model: &TestApp) -> (usize, usize) { (model.editor_state.cursor_line, model.editor_state.cursor_col) }
 
 #[test]
 fn shared_prefix_quits_from_calendar_and_cancels_without_inserting_keys() {
@@ -272,9 +273,9 @@ fn search_highlights_only_matching_unicode_characters() {
     let mut terminal = Terminal::new(TestBackend::new(160, 30)).unwrap();
     terminal.draw(|f| app::view(f, &model)).unwrap();
     let buffer = terminal.backend().buffer();
-    assert_eq!(buffer[(0, 1)].bg, model.settings.theme.palette().current_search);
+    assert_eq!(buffer[(0, 1)].bg, ratatui_diary::theme::palette(model.settings.theme).current_search);
     assert_eq!(buffer[(4, 1)].symbol(), "X");
-    assert_eq!(buffer[(4, 1)].bg, model.settings.theme.palette().bg);
+    assert_eq!(buffer[(4, 1)].bg, ratatui_diary::theme::palette(model.settings.theme).bg);
     model.settings.language = Language::English;
     ctrl(&mut model, 'r');
     terminal.draw(|f| app::view(f, &model)).unwrap();

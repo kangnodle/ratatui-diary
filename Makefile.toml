@@ -11,7 +11,7 @@
   command = "cargo"
 
 [tasks.format]
-  args          = ["fmt"]
+  args          = ["fmt", "--all"]
   command       = "cargo"
   dependencies  = ["check", "clippy"]
   install_crate = "rustfmt"

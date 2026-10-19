@@ -1,0 +1,15 @@
+[package]
+  name = "diary-application"
+  edition.workspace = true
+  version.workspace = true
+
+[dependencies]
+  chrono = { workspace = true, default-features = false, features = ["std"] }
+  diary-domain = { workspace = true }
+  text-editor = { workspace = true }
+  regex = { workspace = true }
+
+# Avoid Windows installer detection for an executable named `update_tests.exe`.
+[[test]]
+  name = "diary_behavior_tests"
+  path = "tests/update_tests.rs"

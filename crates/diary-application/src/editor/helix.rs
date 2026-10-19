@@ -4,11 +4,11 @@ use super::state::{EditorState,
 use crate::{app::{Command,
                   Model,
                   Screen},
+            input::{KeyCode,
+                    KeyEvent,
+                    KeyModifiers},
             message::Msg,
             settings::Language};
-use crossterm::event::{KeyCode,
-                       KeyEvent,
-                       KeyModifiers};
 use regex::RegexBuilder;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -364,7 +364,7 @@ fn command(model: &mut Model) -> Option<Command> {
     model.editor_state.helix.prompt.clear();
     match cmd.as_str() {
         | "w" | "write" if model.screen == Screen::Editor => Some(Command::SaveDiary(model.editor_state.date, model.editor_state.get_content())),
-        | "wq" | "write-quit" | "x" if model.screen == Screen::Editor => Some(Command::WriteAndQuit),
+        | "wq" | "write-quit" | "x" if model.screen == Screen::Editor => crate::app::navigate(model, crate::app::Navigation::Quit, true),
         | "q" | "quit" | "bc" | "buffer-close" if model.editor_state.is_modified => {
             error(
                 model,
@@ -379,7 +379,7 @@ fn command(model: &mut Model) -> Option<Command> {
         },
         | "bc" | "buffer-close" => {
             model.screen = Screen::Calendar;
-            None
+            Some(Command::LoadPreview(model.calendar_state.selected_date))
         },
         | _ => {
             error(
@@ -657,7 +657,7 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
     if prefix == Some(Prefix::Space) {
         if key.code == KeyCode::Char('f') {
             state.helix.mode = Mode::Normal;
-            return Some(Command::BackToCalendar);
+            return crate::app::navigate(model, crate::app::Navigation::Calendar, false);
         }
         return None;
     }

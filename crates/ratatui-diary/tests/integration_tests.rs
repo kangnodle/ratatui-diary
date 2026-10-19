@@ -1,3 +1,6 @@
+mod common;
+use crate::common::{TestApp,
+                    execute_command};
 use chrono::{Datelike,
              NaiveDate};
 use crossterm::event::{KeyCode,
@@ -6,10 +9,8 @@ use crossterm::event::{KeyCode,
                        KeyModifiers};
 use ratatui::{Terminal,
               backend::TestBackend};
-use ratatui_diary::{Model,
-                    Msg,
+use ratatui_diary::{Msg,
                     app::{Command,
-                          execute_command,
                           handle_key},
                     model::Screen,
                     storage::Storage,
@@ -26,9 +27,9 @@ fn test_application_startup() {
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = storage.scan_entries().unwrap();
 
-    // When: Model 생성
+    // When: TestApp 생성
     let before = chrono::Local::now().date_naive();
-    let model = Model::new(entries, storage);
+    let model = TestApp::new(entries, storage);
     let after = chrono::Local::now().date_naive();
 
     // Then: Calendar 화면으로 시작 (Emacs — 모드리스)
@@ -46,11 +47,11 @@ fn test_application_startup() {
 fn test_opening_missing_diary_starts_with_empty_content() {
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     let date = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
     model.screen = Screen::Editor;
 
-    execute_command(Command::LoadDiary(date), &mut model).unwrap();
+    execute_command(Command::LoadDiary(date), &mut model);
 
     assert_eq!(model.editor_state.date, date);
     assert_eq!(model.editor_state.content, vec![String::new()]);
@@ -62,7 +63,7 @@ fn test_opening_missing_diary_starts_with_empty_content() {
 fn test_key_release_does_not_insert_character_twice() {
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     model.screen = Screen::Editor;
 
     let press = KeyEvent::new_with_kind(KeyCode::Char('#'), KeyModifiers::NONE, KeyEventKind::Press);
@@ -85,7 +86,7 @@ fn test_full_diary_workflow() {
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = storage.scan_entries().unwrap();
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
 
     // When: 날짜 선택
     let date = NaiveDate::from_ymd_opt(2026, 2, 15).unwrap();
@@ -98,7 +99,7 @@ fn test_full_diary_workflow() {
     assert_eq!(model.editor_state.date, date);
 
     // When: 일기 로드 성공
-    update::update(&mut model, Msg::LoadDiarySuccess(date, "test".to_string()));
+    update::update(&mut model, Msg::LoadDiarySuccess(date, "test".to_string(), diary_domain::EntryFormat::Org));
 
     // Then: 내용이 로드됨
     assert_eq!(model.editor_state.content, vec!["test".to_string()]);
@@ -118,7 +119,8 @@ fn test_full_diary_workflow() {
     assert!(save_cmd.is_some());
 
     // When: 저장 성공 메시지 처리
-    update::update(&mut model, Msg::SaveDiarySuccess);
+    let saved_date = model.editor_state.date;
+    update::update(&mut model, Msg::SaveDiarySuccess(saved_date));
 
     // Then: 수정 플래그만 초기화됨
     assert!(!model.editor_state.is_modified);
@@ -130,7 +132,7 @@ fn test_error_handling_workflow() {
     // Given: 모델 초기화
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
 
     // When: 로드 실패 메시지 처리
     update::update(&mut model, Msg::LoadDiaryFailed("파일을 찾을 수 없음".to_string()));
@@ -153,7 +155,7 @@ fn test_save_error_handling() {
     // Given: 모델 초기화
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
 
     // When: 저장 실패 메시지 처리
     update::update(&mut model, Msg::SaveDiaryFailed("쓰기 권한 없음".to_string()));
@@ -175,7 +177,7 @@ fn test_render_all_states() {
     // Given: 다양한 상태의 모델
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     let backend = TestBackend::new(80, 24);
     let mut terminal = Terminal::new(backend).unwrap();
 
@@ -208,7 +210,7 @@ fn test_keyboard_navigation_simulation() {
     // Given: Calendar 화면 초기 상태
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     let original_date = model.calendar_state.selected_date;
 
     // When: 오른쪽 방향키 이동
@@ -240,7 +242,7 @@ fn test_editor_navigation() {
     // Given: 에디터 화면 초기화
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["Hello World".to_string()];
 
@@ -264,7 +266,7 @@ fn test_quit_message() {
     // Given: 모델 초기화
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     let initial_screen = model.screen;
 
     // When: Quit 메시지 처리
@@ -280,7 +282,7 @@ fn test_complex_editor_workflow() {
     // Given: 에디터 화면 초기화
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     model.screen = Screen::Editor;
 
     // When: 여러 문자 입력 (Emacs — 항상 입력 가능)
@@ -306,7 +308,7 @@ fn test_calendar_month_navigation() {
     // Given: Calendar 초기화
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     let initial_month = model.calendar_state.current_month;
 
     // When: 다음 달로 이동 (Alt+N — 직접 호출)
@@ -327,7 +329,7 @@ fn test_backspace_handling() {
     // Given: 에디터에 내용이 있는 상태
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["Hello".to_string()];
     model.editor_state.cursor_col = 5;
@@ -345,7 +347,7 @@ fn test_screen_transition() {
     // Given: Calendar 화면
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     assert_eq!(model.screen, Screen::Calendar);
 
     // When: 날짜 선택
@@ -358,7 +360,7 @@ fn test_screen_transition() {
     // When: 에디터에서 Ctrl+X → k로 뒤로 가기
     update::update(&mut model, Msg::EditorEnterCtrlXMode);
     let command = update::update(&mut model, Msg::EditorCtrlXBack).unwrap();
-    execute_command(command, &mut model).unwrap();
+    execute_command(command, &mut model);
 
     // Then: Calendar 화면으로 복귀
     assert_eq!(model.screen, Screen::Calendar);
@@ -370,7 +372,7 @@ fn test_undo_redo() {
     // Given: 에디터 초기화 및 내용 입력
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["AB".to_string()];
     model.editor_state.cursor_col = 0;
@@ -405,7 +407,7 @@ fn test_calendar_year_navigation() {
     // Given: Calendar 초기화
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
-    let mut model = Model::new(HashSet::new(), storage);
+    let mut model = TestApp::new(HashSet::new(), storage);
     let initial_year = model.calendar_state.current_year;
 
     // When: 다음 연도로 이동 (Alt+] — 직접 호출)
@@ -433,7 +435,7 @@ fn test_delete_diary_success() {
     let _ = storage.save(date, "테스트 내용");
     let entries = storage.scan_entries().unwrap();
 
-    let mut model = Model::new(entries, storage);
+    let mut model = TestApp::new(entries, storage);
 
     // diary_entries에 date가 포함되어 있음을 확인
     assert!(model.diary_entries.entries.contains(&date));

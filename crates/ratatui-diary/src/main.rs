@@ -9,40 +9,14 @@ use ratatui::{Terminal,
               backend::CrosstermBackend,
               prelude::*};
 use ratatui_diary::{Model,
-                    app,
-                    storage::Storage};
+                    Runtime,
+                    app};
 use std::{io,
           time::Duration};
 
 fn main() -> std::io::Result<()> {
-    // Storage 초기화
-    let storage = Storage::new()?;
-    let entries = storage.scan_entries()?;
+    let (mut runtime, mut model) = ratatui_diary::Runtime::start()?;
 
-    // Model 초기화
-    let mut model = Model::new(entries, storage);
-
-    match ratatui_diary::settings::Settings::path() {
-        | Ok(path) => {
-            match ratatui_diary::settings::Settings::load(&path) {
-                | Ok(settings) => model.settings = settings,
-                | Err(e) => {
-                    model.error_message = Some(format!("설정 읽기 실패 / Failed to load settings: {e}"));
-                    model.show_error_popup = true;
-                },
-            }
-            model.settings_path = Some(path);
-        },
-        | Err(e) => {
-            model.error_message = Some(e.to_string());
-            model.show_error_popup = true;
-        },
-    }
-
-    // Terminal 초기화
-    if model.settings.keybindings == ratatui_diary::settings::Keybindings::Helix {
-        ratatui_diary::editor::helix::reset(&mut model.editor_state, true);
-    }
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen)?;
@@ -51,7 +25,7 @@ fn main() -> std::io::Result<()> {
     terminal.clear()?;
 
     // 이벤트 루프
-    let result = run_app(&mut terminal, &mut model);
+    let result = run_app(&mut terminal, &mut model, &mut runtime);
 
     // Terminal 복원
     disable_raw_mode()?;
@@ -63,8 +37,9 @@ fn main() -> std::io::Result<()> {
 
 // ratatui 0.30부터 Backend는 연관 타입 `Error`를 가진다. `?`로 io::Result에
 // 합치기 위해 io::Error를 쓰는 백엔드로 한정한다 (CrosstermBackend가 해당).
-fn run_app<B: Backend<Error = io::Error>>(terminal: &mut Terminal<B>, model: &mut Model) -> std::io::Result<()> {
+fn run_app<B: Backend<Error = io::Error>>(terminal: &mut Terminal<B>, model: &mut Model, runtime: &mut Runtime) -> std::io::Result<()> {
     loop {
+        model.today = chrono::Local::now().date_naive();
         model.editor_state.viewport_height = usize::from(terminal.size()?.height.saturating_sub(4).max(1));
         // 렌더링
         terminal.draw(|f| app::view(f, model))?;
@@ -76,7 +51,7 @@ fn run_app<B: Backend<Error = io::Error>>(terminal: &mut Terminal<B>, model: &mu
         {
             // Update 호출
             if let Some(cmd) = app::update(model, msg) {
-                app::execute_command(cmd, model)?;
+                runtime.execute(cmd, model);
             }
             if model.should_quit {
                 break;

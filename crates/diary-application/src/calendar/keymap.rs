@@ -1,9 +1,9 @@
 //! 달력 화면의 키 입력 → 메시지 매핑.
 
-use crate::message::Msg;
-use crossterm::event::{KeyCode,
-                       KeyEvent,
-                       KeyModifiers};
+use crate::{input::{KeyCode,
+                    KeyEvent,
+                    KeyModifiers},
+            message::Msg};
 
 pub fn handle_key(key: KeyEvent) -> Option<Msg> {
     let mods = key.modifiers;

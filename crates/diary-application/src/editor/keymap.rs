@@ -2,10 +2,10 @@
 
 use crate::{editor::state::{EditorState,
                             EditorSubMode},
+            input::{KeyCode,
+                    KeyEvent,
+                    KeyModifiers},
             message::Msg};
-use crossterm::event::{KeyCode,
-                       KeyEvent,
-                       KeyModifiers};
 
 pub fn handle_key(key: KeyEvent, state: &EditorState) -> Option<Msg> {
     let mods = key.modifiers;

@@ -22,7 +22,7 @@ pub fn build_calendar_keybindings(_state: &CalendarState) -> String { crate::set
 
 pub fn render(f: &mut Frame, model: &Model) {
     let lang = model.settings.language;
-    let palette = model.settings.theme.palette();
+    let palette = crate::theme::palette(model.settings.theme);
     // 메인 레이아웃: 수평 분할 (50:50)
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -85,15 +85,12 @@ pub fn render(f: &mut Frame, model: &Model) {
 
     // 오른쪽: 미리보기 영역
     let selected_date = model.calendar_state.selected_date;
-    let preview_content = match model.storage.load(selected_date) {
-        | Ok(content) => content,
-        | Err(_) => lang.tr(crate::i18n::Text::EmptyDiary).to_string(),
-    };
-
-    let preview_text = if model.storage.is_markdown(selected_date).unwrap_or(false) {
-        crate::markdown::render_to_text(&preview_content)
+    let entry = model.preview.as_ref().filter(|(date, _)| *date == selected_date).map(|(_, entry)| entry);
+    let preview_content = entry.map_or_else(|| lang.tr(crate::i18n::Text::EmptyDiary), |entry| entry.content.as_str());
+    let preview_text = if entry.is_some_and(|entry| entry.format == diary_domain::EntryFormat::Markdown) {
+        crate::markdown::render_to_text(preview_content)
     } else {
-        crate::org::render_to_text(&preview_content)
+        crate::org::render_to_text(preview_content)
     };
     render_preview_pane(
         f,
@@ -204,9 +201,9 @@ fn render_calendar_grid(f: &mut Frame, area: Rect, model: &Model) {
 fn format_day(day: u32, date: chrono::NaiveDate, model: &Model) -> Span<'static> {
     let has_entry = model.diary_entries.entries.contains(&date);
     let is_selected = date == model.calendar_state.selected_date;
-    let is_today = date == chrono::Local::now().date_naive();
+    let is_today = date == model.today;
 
-    let palette = model.settings.theme.palette();
+    let palette = crate::theme::palette(model.settings.theme);
     let mut style = palette.base();
 
     if has_entry {

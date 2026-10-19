@@ -12,7 +12,7 @@ pub enum Msg {
     SettingsChange(bool),
     SettingsSaveFailed(String),
     DismissError,
-    HelixKey(crossterm::event::KeyEvent),
+    HelixKey(crate::input::KeyEvent),
 
     // 에디터 - 네비게이션
     EditorMoveLeft,
@@ -79,9 +79,10 @@ pub enum Msg {
     CalendarPrevYear,
 
     // 파일 I/O 결과
-    LoadDiarySuccess(NaiveDate, String),
+    LoadDiarySuccess(NaiveDate, String, diary_domain::EntryFormat),
     LoadDiaryFailed(String),
-    SaveDiarySuccess,
+    SaveDiarySuccess(NaiveDate),
+    PreviewLoaded(NaiveDate, Option<diary_domain::DiaryEntry>),
     SaveDiaryFailed(String),
     DeleteDiarySuccess(NaiveDate),
     RefreshIndex(HashSet<NaiveDate>),

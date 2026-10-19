@@ -12,11 +12,11 @@ impl CalendarState {
     pub fn new(year: i32, month: u32) -> Self {
         let selected_date = match NaiveDate::from_ymd_opt(year, month, 1) {
             | Some(date) => date,
-            | None => chrono::Local::now().date_naive(),
+            | None => NaiveDate::default(),
         };
         Self {
-            current_year: year,
-            current_month: month,
+            current_year: selected_date.year(),
+            current_month: selected_date.month(),
             selected_date,
             cursor_pos: 0,
         }

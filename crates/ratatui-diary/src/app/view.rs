@@ -17,7 +17,7 @@ use ratatui::{Frame,
                         Wrap}};
 
 pub fn view(f: &mut Frame, model: &Model) {
-    f.render_widget(Block::default().style(model.settings.theme.palette().base()), f.area());
+    f.render_widget(Block::default().style(crate::theme::palette(model.settings.theme).base()), f.area());
     match model.screen {
         | Screen::Calendar => calendar::view::render(f, model),
         | Screen::Editor => editor::view::render(f, model),
@@ -45,9 +45,9 @@ fn render_error_popup(f: &mut Frame, model: &Model) {
             Block::default()
                 .title(model.settings.language.tr(crate::i18n::Text::ErrorTitle))
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(model.settings.theme.palette().error)),
+                .border_style(Style::default().fg(crate::theme::palette(model.settings.theme).error)),
         )
-        .style(model.settings.theme.palette().base())
+        .style(crate::theme::palette(model.settings.theme).base())
         .wrap(Wrap {
             trim: true,
         });
@@ -79,7 +79,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
 fn render_settings(f: &mut Frame, model: &Model) {
     use crate::settings::Theme;
     let lang = model.settings.language;
-    let palette = model.settings.theme.palette();
+    let palette = crate::theme::palette(model.settings.theme);
     let area = centered_rect(80, 60, f.area());
     let theme = match model.settings.theme {
         | Theme::System => lang.tr(crate::i18n::Text::System),
