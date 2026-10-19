@@ -21,17 +21,8 @@ fn update_selection_on_move(state: &mut TextEditor) {
 
 /// 클립보드 내용을 커서 위치에 붙여넣기
 fn paste_clipboard(state: &mut TextEditor) {
-    if state.content.is_empty() {
-        state.content.push(String::new());
-    }
     state.selection = None;
-    for ch in state.clipboard.clone().chars() {
-        if ch == '\n' {
-            state.new_line();
-        } else {
-            state.insert_char(ch);
-        }
-    }
+    state.insert_text(&state.clipboard.clone());
 }
 
 fn kill_word(state: &mut TextEditor, backward: bool) {

@@ -94,3 +94,21 @@ fn terminal_control_characters_are_not_emitted_and_source_contents_are_preserved
     }
     assert_eq!(model.editor_state.get_content(), content);
 }
+
+#[test]
+fn overlapping_unicode_highlights_keep_the_first_match_and_current_match_colors() {
+    let mut model = Model::new(NaiveDate::default(), Default::default());
+    model.screen = diary_application::Screen::Editor;
+    model.editor_state.load_content("한한한");
+    model.editor_state.search_pattern = "한한".into();
+    model.editor_state.execute_search();
+    model.editor_state.current_match_index = 1;
+    model.editor_state.selection = None;
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    terminal.draw(|frame| app::view(frame, &model)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let palette = ratatui_diary::theme::palette(model.settings.theme);
+    assert_eq!(buffer[(0, 1)].bg, palette.search);
+    assert_eq!(buffer[(2, 1)].bg, palette.search);
+    assert_eq!(buffer[(4, 1)].bg, palette.current_search);
+}

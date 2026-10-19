@@ -166,6 +166,7 @@ fn render_diary_preview(f: &mut Frame, area: Rect, content: &str, model: &Model)
 /// 에디터 내용을 스타일이 적용된 Line 벡터로 변환
 fn render_editor_content(editor_state: &EditorState, palette: crate::settings::Palette, area: Rect, scroll_x: usize, scroll_y: usize) -> Vec<Line<'static>> {
     let selection_range = editor_state.get_selection_range();
+    let pattern_len = editor_state.search_pattern.chars().count();
 
     editor_state
         .content
@@ -205,7 +206,7 @@ fn render_editor_content(editor_state: &EditorState, palette: crate::settings::P
                     &selection_range,
                     &editor_state.search_matches,
                     editor_state.current_match_index,
-                    &editor_state.search_pattern,
+                    pattern_len,
                     palette,
                 );
 
@@ -234,11 +235,9 @@ fn get_char_style(
     selection_range: &SelectionRange,
     search_matches: &[(usize, usize)],
     current_match_index: usize,
-    search_pattern: &str,
+    pattern_len: usize,
     palette: crate::settings::Palette,
 ) -> Style {
-    let pattern_len = search_pattern.chars().count();
-
     let (is_match, is_current) = is_search_match(line, col, search_matches, current_match_index, pattern_len);
 
     let in_selection = is_in_selection(line, col, selection_range);
@@ -277,11 +276,18 @@ fn is_in_selection(line: usize, col: usize, selection_range: &SelectionRange) ->
 
 /// 특정 위치가 검색 매치인지 확인
 fn is_search_match(line: usize, col: usize, matches: &[(usize, usize)], current_match_index: usize, pattern_len: usize) -> (bool, bool) {
-    for (idx, (match_line, match_col)) in matches.iter().enumerate() {
-        if *match_line == line && col >= *match_col && col < match_col + pattern_len {
-            let is_current = idx == current_match_index;
-            return (true, is_current);
-        }
+    if pattern_len == 0 {
+        return (false, false);
+    }
+    // Search positions are sorted; choose the first overlapping match as
+    // before.
+    let earliest = (line, col.saturating_sub(pattern_len - 1));
+    let index = matches.partition_point(|position| *position < earliest);
+    if let Some(&(match_line, match_col)) = matches.get(index)
+        && match_line == line
+        && match_col <= col
+    {
+        return (true, index == current_match_index);
     }
     (false, false)
 }

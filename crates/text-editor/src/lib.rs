@@ -28,6 +28,7 @@ pub struct TextEditor {
     pub history_index: usize,
     pub clipboard: String,
     pub search_pattern: String,
+    /// Match positions sorted by (line, character column), including overlaps.
     pub search_matches: Vec<(usize, usize)>,
     pub current_match_index: usize,
 }
@@ -67,15 +68,6 @@ impl TextEditor {
             | Some((byte_idx, _)) => byte_idx,
             | None => self.content[line].len(),
         }
-    }
-
-    /// 바이트 인덱스를 문자 인덱스로 변환
-    fn byte_idx_to_char_idx(&self, line: usize, byte_idx: usize) -> usize {
-        if line >= self.content.len() {
-            return 0;
-        }
-
-        self.content[line][.. byte_idx.min(self.content[line].len())].chars().count()
     }
 
     pub fn save_snapshot(&mut self) {
@@ -134,6 +126,38 @@ impl TextEditor {
         let byte_idx = self.char_idx_to_byte_idx(self.cursor_line, self.cursor_col);
         self.content[self.cursor_line].insert(byte_idx, c);
         self.cursor_col += 1;
+        self.is_modified = true;
+    }
+
+    /// Insert a text block at point. Selection and undo checkpoints belong to
+    /// callers.
+    pub fn insert_text(&mut self, text: &str) {
+        if text.is_empty() {
+            return;
+        }
+        if self.content.is_empty() {
+            self.content.push(String::new());
+        }
+        self.cursor_line = self.cursor_line.min(self.content.len() - 1);
+        let byte = self.char_idx_to_byte_idx(self.cursor_line, self.cursor_col);
+        let mut lines = text.split('\n');
+        let first = match lines.next() {
+            | Some(first) => first,
+            | None => return,
+        };
+        let tail = self.content[self.cursor_line].split_off(byte);
+        self.content[self.cursor_line].push_str(first);
+        let mut rest: Vec<String> = lines.map(str::to_owned).collect();
+        if let Some(last) = rest.last_mut() {
+            self.cursor_col = last.chars().count();
+            last.push_str(&tail);
+            let at = self.cursor_line + 1;
+            self.cursor_line += rest.len();
+            self.content.splice(at .. at, rest);
+        } else {
+            self.content[self.cursor_line].push_str(&tail);
+            self.cursor_col += first.chars().count();
+        }
         self.is_modified = true;
     }
 
@@ -240,6 +264,10 @@ impl TextEditor {
     }
 
     pub fn get_content(&self) -> String { self.content.join("\n") }
+
+    /// Count characters and line separators without allocating a joined
+    /// document.
+    pub fn char_len(&self) -> usize { self.content.iter().map(|line| line.chars().count()).sum::<usize>() + self.content.len().saturating_sub(1) }
 
     pub fn get_selection_range(&self) -> Option<((usize, usize), (usize, usize))> {
         self.selection.as_ref().map(|sel| {
@@ -380,10 +408,11 @@ impl TextEditor {
         }
         let advance = self.search_pattern.chars().next().map_or(1, char::len_utf8);
         for (line_idx, line) in self.content.iter().enumerate() {
-            let mut start_byte = 0;
+            let (mut start_byte, mut counted_byte, mut match_char) = (0, 0, 0);
             while let Some(pos_byte) = line[start_byte ..].find(&self.search_pattern) {
                 let match_byte = start_byte + pos_byte;
-                let match_char = self.byte_idx_to_char_idx(line_idx, match_byte);
+                match_char += line[counted_byte .. match_byte].chars().count();
+                counted_byte = match_byte;
                 self.search_matches.push((line_idx, match_char));
                 start_byte = match_byte + advance;
             }

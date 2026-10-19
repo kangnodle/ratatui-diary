@@ -19,3 +19,7 @@
 
 [dev-dependencies]
   tempfile = { workspace = true }
+
+[[bench]]
+  name = "hotpaths"
+  harness = false

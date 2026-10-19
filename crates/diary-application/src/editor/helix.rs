@@ -60,7 +60,7 @@ fn position(state: &EditorState, mut index: usize) -> (usize, usize) {
 fn point(state: &EditorState) -> usize { offset(state, state.cursor_line, state.cursor_col) }
 
 fn cursor_limit(state: &EditorState) -> usize {
-    let len = state.get_content().chars().count();
+    let len = state.char_len();
     if state.content.last().is_some_and(String::is_empty) {
         len
     } else {
@@ -72,14 +72,14 @@ fn bounds(state: &EditorState) -> (usize, usize) {
     state.get_selection_range().map_or_else(
         || {
             let p = point(state);
-            (p, (p + 1).min(state.get_content().chars().count()))
+            (p, (p + 1).min(state.char_len()))
         },
         |((al, ac), (hl, hc))| (offset(state, al, ac), offset(state, hl, hc)),
     )
 }
 
 fn assign(state: &mut EditorState, anchor: usize, head: usize) {
-    let len = state.get_content().chars().count();
+    let len = state.char_len();
     let anchor = anchor.min(len);
     let head = head.min(len);
     let (anchor_line, anchor_col) = position(state, anchor);
@@ -171,13 +171,7 @@ fn replace_selection(state: &mut EditorState, replacement: &str, checkpoint: boo
     }
     let (start, _) = bounds(state);
     state.delete_selection();
-    for ch in replacement.chars() {
-        if ch == '\n' {
-            state.new_line();
-        } else {
-            state.insert_char(ch);
-        }
-    }
+    state.insert_text(replacement);
     let end = point(state);
     assign(state, start, end);
     if checkpoint {
@@ -260,7 +254,7 @@ fn motion(state: &mut EditorState, key: KeyCode, count: usize) {
         return;
     }
     let (line, col) = (state.cursor_line, state.cursor_col);
-    let len = state.get_content().chars().count();
+    let len = state.char_len();
     let target = match key {
         | KeyCode::Char('h') | KeyCode::Left => point(state).saturating_sub(count),
         | KeyCode::Char('l') | KeyCode::Right => point(state).saturating_add(count).min(len.saturating_sub(1)),
@@ -745,7 +739,7 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
         | KeyCode::Char('v') => state.helix.mode = if state.helix.mode == Mode::Select { Mode::Normal } else { Mode::Select },
         | KeyCode::Char(';') => collapse(state),
         | KeyCode::Char('%') => {
-            let len = state.get_content().chars().count();
+            let len = state.char_len();
             assign(state, 0, len);
         },
         | KeyCode::Char('x' | 'X') => {
@@ -753,14 +747,13 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
             let (first, _) = position(state, start);
             let (last, _) = position(state, end.saturating_sub(1));
             let mut last = last.saturating_add(count - 1).min(state.content.len() - 1);
-            if key.code == KeyCode::Char('x') && start == offset(state, first, 0) && end == offset(state, last + 1, 0).min(state.get_content().chars().count())
-            {
+            if key.code == KeyCode::Char('x') && start == offset(state, first, 0) && end == offset(state, last + 1, 0).min(state.char_len()) {
                 last = (last + 1).min(state.content.len() - 1);
             }
             let finish = if last + 1 < state.content.len() {
                 offset(state, last + 1, 0)
             } else {
-                state.get_content().chars().count()
+                state.char_len()
             };
             assign(state, offset(state, first, 0), finish);
         },
@@ -829,7 +822,7 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
                     } else if line + 1 < state.content.len() {
                         at = offset(state, line + 1, 0);
                     } else {
-                        at = state.get_content().chars().count();
+                        at = state.char_len();
                         text.insert(0, '\n');
                     }
                 }
