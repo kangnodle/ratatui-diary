@@ -355,9 +355,10 @@ fn test_screen_transition() {
     // Then: Editor 화면으로 전환
     assert_eq!(model.screen, Screen::Editor);
 
-    // When: 에디터에서 Ctrl+X → Ctrl+C로 뒤로 가기
+    // When: 에디터에서 Ctrl+X → k로 뒤로 가기
     update::update(&mut model, Msg::EditorEnterCtrlXMode);
-    update::update(&mut model, Msg::EditorCtrlXBack);
+    let command = update::update(&mut model, Msg::EditorCtrlXBack).unwrap();
+    execute_command(command, &mut model).unwrap();
 
     // Then: Calendar 화면으로 복귀
     assert_eq!(model.screen, Screen::Calendar);

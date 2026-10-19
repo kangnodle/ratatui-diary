@@ -386,10 +386,10 @@ mod word_navigation_tests {
         state.cursor_col = 0;
 
         state.move_word_next();
-        assert_eq!(state.cursor_col, 6);
+        assert_eq!(state.cursor_col, 5);
 
         state.move_word_next();
-        assert_eq!(state.cursor_col, 12);
+        assert_eq!(state.cursor_col, 11);
     }
 
     #[test]

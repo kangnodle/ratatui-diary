@@ -13,6 +13,8 @@ use crate::{app::{Model,
 use chrono::NaiveDate;
 
 pub enum Command {
+    Quit,
+    BackToCalendar,
     SaveSettings,
     LoadDiary(NaiveDate),
     SaveDiary(NaiveDate, String),
@@ -52,7 +54,36 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             None
         },
         | Msg::Quit => {
-            // 메인 루프에서 처리
+            model.editor_state.submode = None;
+            Some(Command::Quit)
+        },
+        | Msg::EditorEnterCtrlXMode => {
+            model.editor_state.submode = Some(editor::state::EditorSubMode::CtrlX);
+            None
+        },
+        | Msg::EditorExitSubMode => {
+            model.editor_state.submode = None;
+            None
+        },
+        | Msg::EditorKeyboardQuit => {
+            let state = &mut model.editor_state;
+            if let Some((line, col)) = state.search_origin.take() {
+                state.cursor_line = line;
+                state.cursor_col = col;
+            }
+            state.submode = None;
+            state.selection = None;
+            state.search_matches.clear();
+            state.search_pattern.clear();
+            None
+        },
+        | Msg::EditorCtrlXBack if model.screen == Screen::Editor => {
+            model.editor_state.submode = None;
+            Some(Command::BackToCalendar)
+        },
+        | Msg::EditorUndo if model.editor_state.submode == Some(editor::state::EditorSubMode::CtrlX) => {
+            model.editor_state.submode = None;
+            model.editor_state.undo();
             None
         },
 
@@ -67,6 +98,8 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             if model.screen == Screen::Editor {
                 model.editor_state.date = date;
                 model.editor_state.load_content(&content);
+                model.editor_state.submode = None;
+                model.editor_state.search_origin = None;
             }
             None
         },

@@ -9,7 +9,6 @@ use ratatui::{Terminal,
               backend::CrosstermBackend,
               prelude::*};
 use ratatui_diary::{Model,
-                    Msg,
                     app,
                     storage::Storage};
 use std::{io,
@@ -71,14 +70,12 @@ fn run_app<B: Backend<Error = io::Error>>(terminal: &mut Terminal<B>, model: &mu
             && let Event::Key(key) = event::read()?
             && let Some(msg) = app::handle_key(key, model)
         {
-            // Quit 메시지 처리
-            if matches!(msg, Msg::Quit) {
-                break;
-            }
-
             // Update 호출
             if let Some(cmd) = app::update(model, msg) {
                 app::execute_command(cmd, model)?;
+            }
+            if model.should_quit {
+                break;
             }
         }
     }

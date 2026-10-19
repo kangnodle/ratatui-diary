@@ -9,6 +9,11 @@ pub fn handle_key(key: KeyEvent) -> Option<Msg> {
     let mods = key.modifiers;
 
     match key.code {
+        | KeyCode::Char('x') if mods == KeyModifiers::CONTROL => Some(Msg::EditorEnterCtrlXMode),
+        | KeyCode::Left if mods.is_empty() => Some(Msg::CalendarMoveLeft),
+        | KeyCode::Right if mods.is_empty() => Some(Msg::CalendarMoveRight),
+        | KeyCode::Up if mods.is_empty() => Some(Msg::CalendarMoveUp),
+        | KeyCode::Down if mods.is_empty() => Some(Msg::CalendarMoveDown),
         // Ctrl+Q: 종료
         | KeyCode::Char('q') if mods.contains(KeyModifiers::CONTROL) => Some(Msg::Quit),
 

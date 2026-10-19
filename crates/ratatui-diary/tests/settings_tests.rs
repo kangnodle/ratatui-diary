@@ -175,7 +175,8 @@ fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
         assert!(model.diary_entries.entries.contains(&date));
 
         app::update(&mut model, Msg::EditorEnterCtrlXMode);
-        app::update(&mut model, Msg::EditorCtrlXBack);
+        let command = app::update(&mut model, Msg::EditorCtrlXBack).unwrap();
+        app::execute_command(command, &mut model).unwrap();
         assert_eq!(model.screen, Screen::Calendar);
         let (text, _) = rendered(&model, 160, 30);
         assert_eq!(text.contains("◉ Today"), !legacy);

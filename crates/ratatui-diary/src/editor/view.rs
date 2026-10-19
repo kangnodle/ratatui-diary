@@ -91,7 +91,7 @@ pub fn render(f: &mut Frame, model: &Model) {
         | Some(EditorSubMode::Search) => crate::i18n::Text::SearchKeys,
     });
     let status_text = format!(
-        "{} | F2:{} · {} / {} | {}",
+        "{} | F2:{} · {} / {}\n{}",
         mode_text,
         lang.tr(crate::i18n::Text::Settings),
         lang.tr(crate::i18n::Text::LanguageName),
@@ -180,7 +180,7 @@ fn get_char_style(
     search_pattern: &str,
     palette: crate::settings::Palette,
 ) -> Style {
-    let pattern_len = search_pattern.len();
+    let pattern_len = search_pattern.chars().count();
 
     let (is_match, is_current) = is_search_match(line, col, search_matches, current_match_index, pattern_len);
 
@@ -235,7 +235,8 @@ fn build_status_text(editor_state: &EditorState) -> String {
     let submode_text = match &editor_state.submode {
         | Some(EditorSubMode::CtrlX) => "-- C-x --",
         | Some(EditorSubMode::Search) => {
-            return format!("검색: {}", editor_state.search_pattern);
+            let label = if editor_state.search_backward { "역방향 검색:" } else { "검색:" };
+            return format!("{} {}", label, editor_state.search_pattern);
         },
         | None => "-- EMACS --",
     };
@@ -252,7 +253,9 @@ fn build_status_text(editor_state: &EditorState) -> String {
 
 fn localize_status(text: String, lang: crate::settings::Language) -> String {
     if lang == crate::settings::Language::English {
-        text.replace("검색:", "Search:").replace("매치", "matches")
+        text.replace("역방향 검색:", "I-search backward:")
+            .replace("검색:", "Search:")
+            .replace("매치", "matches")
     } else {
         text
     }

@@ -346,7 +346,8 @@ fn test_editor_ctrl_x_back() {
     model.screen = Screen::Editor;
     model.editor_state.submode = Some(EditorSubMode::CtrlX);
 
-    ratatui_diary::update::update(&mut model, Msg::EditorCtrlXBack);
+    let command = ratatui_diary::update::update(&mut model, Msg::EditorCtrlXBack).unwrap();
+    ratatui_diary::app::execute_command(command, &mut model).unwrap();
     assert_eq!(model.screen, Screen::Calendar);
 }
 
@@ -625,7 +626,7 @@ mod complete_message_coverage {
     fn test_quit_message() {
         let (mut model, _temp) = setup_model();
         let cmd = ratatui_diary::update::update(&mut model, Msg::Quit);
-        assert!(cmd.is_none());
+        assert!(matches!(cmd, Some(ratatui_diary::app::Command::Quit)));
     }
 
     #[test]

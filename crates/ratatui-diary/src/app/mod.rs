@@ -27,6 +27,7 @@ pub struct Model {
     pub settings: crate::settings::Settings,
     pub settings_path: Option<std::path::PathBuf>,
     pub show_settings: bool,
+    pub should_quit: bool,
     pub settings_row: usize,
     pub calendar_state: CalendarState,
     pub editor_state: EditorState,
@@ -55,6 +56,7 @@ impl Model {
             settings: Default::default(),
             settings_path: None,
             show_settings: false,
+            should_quit: false,
             settings_row: 0,
             calendar_state: CalendarState {
                 selected_date: today,

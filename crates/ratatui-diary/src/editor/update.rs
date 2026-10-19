@@ -21,38 +21,40 @@ fn update_selection_on_move(state: &mut TextEditor) {
 
 /// 클립보드 내용을 커서 위치에 붙여넣기
 fn paste_clipboard(state: &mut TextEditor) {
-    if state.clipboard.is_empty() {
+    if state.content.is_empty() {
+        state.content.push(String::new());
+    }
+    state.selection = None;
+    for ch in state.clipboard.clone().chars() {
+        if ch == '\n' {
+            state.new_line();
+        } else {
+            state.insert_char(ch);
+        }
+    }
+}
+
+fn kill_word(state: &mut TextEditor, backward: bool) {
+    let origin = (state.cursor_line, state.cursor_col);
+    if backward {
+        state.move_word_prev();
+    } else {
+        state.move_word_next();
+    }
+    if origin == (state.cursor_line, state.cursor_col) {
         return;
     }
-
-    if state.clipboard.ends_with('\n') {
-        // 줄 단위 붙여넣기
-        let lines: Vec<String> = state.clipboard.trim_end_matches('\n').split('\n').map(String::from).collect();
-
-        if state.content.is_empty() {
-            state.content.push(String::new());
-        }
-
-        let insert_at = (state.cursor_line + 1).min(state.content.len());
-
-        for (i, line) in lines.iter().enumerate() {
-            state.content.insert(insert_at + i, line.clone());
-        }
-
-        state.cursor_line = insert_at;
-        state.cursor_col = 0;
-    } else {
-        // 문자 단위 붙여넣기 — 커서 위치에 삽입
-        if state.cursor_line >= state.content.len() {
-            state.content.push(String::new());
-        }
-
-        let insert_byte_pos = state.char_idx_to_byte_idx(state.cursor_line, state.cursor_col);
-        state.content[state.cursor_line].insert_str(insert_byte_pos, &state.clipboard);
-        state.cursor_col += state.clipboard.chars().count();
+    state.selection = Some(Selection {
+        anchor_line: origin.0,
+        anchor_col: origin.1,
+        cursor_line: state.cursor_line,
+        cursor_col: state.cursor_col,
+    });
+    if let Some(text) = state.get_selected_text() {
+        state.clipboard = text;
+        state.delete_selection();
+        state.save_snapshot();
     }
-
-    state.is_modified = true;
 }
 
 pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
@@ -61,6 +63,10 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         | Msg::EditorMoveLeft =>
             if model.editor_state.cursor_col > 0 {
                 model.editor_state.cursor_col -= 1;
+                update_selection_on_move(&mut model.editor_state);
+            } else if model.editor_state.cursor_line > 0 {
+                model.editor_state.cursor_line -= 1;
+                model.editor_state.cursor_col = model.editor_state.content[model.editor_state.cursor_line].chars().count();
                 update_selection_on_move(&mut model.editor_state);
             },
         | Msg::EditorMoveRight => {
@@ -71,6 +77,10 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             };
             if model.editor_state.cursor_col < line_len {
                 model.editor_state.cursor_col += 1;
+                update_selection_on_move(&mut model.editor_state);
+            } else if model.editor_state.cursor_line + 1 < model.editor_state.content.len() {
+                model.editor_state.cursor_line += 1;
+                model.editor_state.cursor_col = 0;
                 update_selection_on_move(&mut model.editor_state);
             }
         },
@@ -122,13 +132,19 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             model.editor_state.cursor_col = line_len;
             update_selection_on_move(&mut model.editor_state);
         },
-        | Msg::EditorExitSubMode => model.editor_state.submode = None,
-
         // ===== 문자 입력 (항상 활성) =====
-        | Msg::EditorInsertChar(c) => model.editor_state.insert_char(c),
-        | Msg::EditorBackspace => model.editor_state.backspace(),
-        | Msg::EditorNewLine => model.editor_state.new_line(),
-        | Msg::EditorOpenLine => model.editor_state.open_line(),
+        | msg @ (Msg::EditorInsertChar(_) | Msg::EditorBackspace | Msg::EditorNewLine | Msg::EditorOpenLine) => {
+            let state = &mut model.editor_state;
+            state.selection = None;
+            match msg {
+                | Msg::EditorInsertChar(c) => state.insert_char(c),
+                | Msg::EditorBackspace => state.backspace(),
+                | Msg::EditorNewLine => state.new_line(),
+                | Msg::EditorOpenLine => state.open_line(),
+                | _ => unreachable!(),
+            }
+            state.save_snapshot();
+        },
 
         // ===== Selection =====
         | Msg::EditorToggleSelection => {
@@ -180,6 +196,8 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             }
             model.editor_state.save_snapshot();
         },
+        | Msg::EditorKillWord => kill_word(&mut model.editor_state, false),
+        | Msg::EditorBackwardKillWord => kill_word(&mut model.editor_state, true),
         | Msg::EditorYank =>
             if let Some(text) = model.editor_state.get_selected_text() {
                 model.editor_state.clipboard = text;
@@ -195,39 +213,50 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         | Msg::EditorRedo => model.editor_state.redo(),
 
         // ===== 검색 =====
-        | Msg::EditorEnterSearchMode => {
-            model.editor_state.submode = Some(EditorSubMode::Search);
-            model.editor_state.search_pattern.clear();
-        },
+        | Msg::EditorEnterSearchMode => model.editor_state.start_search(false),
+        | Msg::EditorEnterReverseSearchMode => model.editor_state.start_search(true),
         | Msg::EditorSearchChar(c) =>
             if model.editor_state.submode == Some(EditorSubMode::Search) {
                 model.editor_state.search_pattern.push(c);
+                model.editor_state.refresh_search();
             },
         | Msg::EditorSearchBackspace =>
             if model.editor_state.submode == Some(EditorSubMode::Search) {
                 model.editor_state.search_pattern.pop();
+                model.editor_state.refresh_search();
             },
         | Msg::EditorExecuteSearch =>
             if model.editor_state.submode == Some(EditorSubMode::Search) {
-                model.editor_state.execute_search();
-                model.editor_state.submode = None;
+                let state = &mut model.editor_state;
+                state.refresh_search();
+                if !state.search_backward && !state.search_matches.is_empty() {
+                    state.cursor_col += state.search_pattern.chars().count();
+                }
+                state.last_search_pattern = state.search_pattern.clone();
+                state.submode = None;
+                state.search_origin = None;
+                state.selection = None;
             },
-        | Msg::EditorSearchNext => model.editor_state.search_next(),
-        | Msg::EditorSearchPrev => model.editor_state.search_prev(),
+        | msg @ (Msg::EditorSearchNext | Msg::EditorSearchPrev) => {
+            let state = &mut model.editor_state;
+            state.search_backward = matches!(msg, Msg::EditorSearchPrev);
+            if state.search_pattern.is_empty() {
+                state.search_pattern = state.last_search_pattern.clone();
+                state.refresh_search();
+            } else if state.search_backward {
+                state.search_prev();
+            } else {
+                state.search_next();
+            }
+        },
 
         // ===== Ctrl+X 프리픽스 =====
-        | Msg::EditorEnterCtrlXMode => model.editor_state.submode = Some(EditorSubMode::CtrlX),
         | Msg::EditorCtrlXSave =>
             if model.editor_state.submode == Some(EditorSubMode::CtrlX) {
                 let date = model.editor_state.date;
                 let content = model.editor_state.get_content();
                 model.editor_state.submode = None;
                 return Some(Command::SaveDiary(date, content));
-            },
-        | Msg::EditorCtrlXBack =>
-            if model.editor_state.submode == Some(EditorSubMode::CtrlX) {
-                model.screen = crate::app::Screen::Calendar;
-                model.editor_state.submode = None;
             },
 
         | _ => {},

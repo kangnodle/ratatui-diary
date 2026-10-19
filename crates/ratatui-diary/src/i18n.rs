@@ -30,17 +30,20 @@ impl Language {
     pub fn tr(self, text: Text) -> &'static str {
         let (ko, en) = match text {
             | Text::CalendarKeys => (
-                "C-b/f/p/n:이동 | Enter:편집 | M-n/p:월 | M-]/[:년 | C-q:종료",
-                "C-b/f/p/n:Move | Enter:Edit | M-n/p:Month | M-]/[:Year | C-q:Quit",
+                "C-b/f/p/n:이동 | Enter:편집 | M-n/p:월 | M-]/[:년 | C-x C-c:종료 | C-g:취소",
+                "C-b/f/p/n:Move | Enter:Edit | M-n/p:Month | M-]/[:Year | C-x C-c:Quit | C-g:Cancel",
             ),
             | Text::EditorKeys => (
-                "C-f/b/n/p:이동 | C-a/e:줄시작/끝 | M-f/b:단어 | M-</>:문서 | C-h/d:삭제 | C-k:줄삭제 | C-o:줄열기 | C-SPC:마크 | C-w:잘라내기 | M-w:복사 | C-y:붙여넣기 | C-z:실행취소 | C-s:검색 | C-x:명령 | C-q:종료",
-                "C-f/b/n/p:Move | C-a/e:Line start/end | M-f/b:Word | M-</>:Document | C-h/d:Delete | C-k:Kill line | C-o:Open line | C-SPC:Mark | C-w:Cut | M-w:Copy | C-y:Paste | C-z:Undo | C-s:Search | C-x:Command | C-q:Quit",
+                "C-x:명령 | C-g:취소 | C-s/r:검색 | C-/:실행취소 | M-d/BS:단어삭제",
+                "C-x:Commands | C-g:Cancel | C-s/r:Search | C-/:Undo | M-d/BS:Kill word",
             ),
-            | Text::CommandKeys => ("C-s:저장 | C-c:뒤로 | Esc:취소", "C-s:Save | C-c:Back | Esc:Cancel"),
+            | Text::CommandKeys => (
+                "C-s/s:저장 | k:저장 후 달력 | C-c:저장 후 종료 | u:실행취소 | C-g:취소",
+                "C-s/s:Save | k:Save & calendar | C-c:Save & quit | u:Undo | C-g:Cancel",
+            ),
             | Text::SearchKeys => (
-                "입력:검색어 | Enter:실행 | C-s/r:다음/이전 | Esc:취소",
-                "Type:Query | Enter:Search | C-s/r:Next/Previous | Esc:Cancel",
+                "입력:즉시 검색 | C-s/r:다음/이전 | Enter:확정 | C-g:취소·위치복원",
+                "Type:Search now | C-s/r:Next/Previous | Enter:Accept | C-g:Cancel & restore",
             ),
 
             | Text::Settings => ("설정", "Settings"),
@@ -53,14 +56,14 @@ impl Language {
             ),
             | Text::Diary => ("다이어리", "Diary"),
             | Text::UnknownError => ("알 수 없는 에러", "Unknown error"),
-            | Text::ErrorTitle => ("오류 · Esc:닫기", "Error · Esc:Close"),
+            | Text::ErrorTitle => ("오류 · C-g/Esc:닫기", "Error · C-g/Esc:Close"),
             | Text::System => ("시스템", "System"),
             | Text::Dark => ("다크", "Dark"),
             | Text::Light => ("라이트", "Light"),
             | Text::Language => ("언어", "Language"),
             | Text::Theme => ("테마", "Theme"),
-            | Text::SettingsNavigation => ("↑/↓/Tab:항목  ←/→/Enter:변경", "↑/↓/Tab:Select  ←/→/Enter:Change"),
-            | Text::SettingsHelp => ("즉시 적용·자동 저장 | Esc/F2:닫기", "Applied and saved automatically | Esc/F2:Close"),
+            | Text::SettingsNavigation => ("C-n/p/↑/↓/Tab:항목  ←/→/Enter:변경", "C-n/p/↑/↓/Tab:Select  ←/→/Enter:Change"),
+            | Text::SettingsHelp => ("즉시 적용·자동 저장 | C-g/Esc/F2:닫기", "Applied and saved automatically | C-g/Esc/F2:Close"),
             | Text::FailedToSaveSettings => ("설정 저장 실패", "Failed to save settings"),
             | Text::LoadFailed => ("로드 실패", "Load failed"),
             | Text::SaveFailed => ("저장 실패", "Save failed"),

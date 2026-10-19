@@ -55,13 +55,17 @@ pub fn render(f: &mut Frame, model: &Model) {
     render_calendar_grid(f, calendar_chunks[1], model);
 
     // 상태바 - 동적 키바인딩
-    let keybindings = format!(
-        "F2:{} · {} / {}\n{}",
-        lang.tr(crate::i18n::Text::Settings),
-        lang.tr(crate::i18n::Text::LanguageName),
-        model.settings.theme.label(lang),
-        lang.tr(crate::i18n::Text::CalendarKeys)
-    );
+    let keybindings = if model.editor_state.submode == Some(crate::editor::state::EditorSubMode::CtrlX) {
+        lang.text("C-x C-c:저장 후 종료 | C-g:취소", "C-x C-c:Save & quit | C-g:Cancel").to_string()
+    } else {
+        format!(
+            "F2:{} · {} / {}\n{}",
+            lang.tr(crate::i18n::Text::Settings),
+            lang.tr(crate::i18n::Text::LanguageName),
+            model.settings.theme.label(lang),
+            lang.tr(crate::i18n::Text::CalendarKeys)
+        )
+    };
     let statusbar = Paragraph::new(keybindings).alignment(Alignment::Center);
     f.render_widget(statusbar, calendar_chunks[2]);
 

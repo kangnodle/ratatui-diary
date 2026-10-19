@@ -766,7 +766,7 @@ mod keybinding_tests {
     fn test_build_calendar_keybindings() {
         let state = CalendarState::new(2026, 2);
         let result = build_calendar_keybindings(&state);
-        assert_eq!(result, "C-b/f/p/n:이동 | Enter:편집 | M-n/p:월 | M-]/[:년 | C-q:종료");
+        assert_eq!(result, "C-b/f/p/n:이동 | Enter:편집 | M-n/p:월 | M-]/[:년 | C-x C-c:종료 | C-g:취소");
     }
 
     #[test]
@@ -774,10 +774,7 @@ mod keybinding_tests {
         let date = NaiveDate::from_ymd_opt(2026, 2, 15).unwrap();
         let state = EditorState::new(date);
         let result = build_editor_keybindings(&state);
-        assert_eq!(
-            result,
-            "C-f/b/n/p:이동 | C-a/e:줄시작/끝 | M-f/b:단어 | M-</>:문서 | C-h/d:삭제 | C-k:줄삭제 | C-o:줄열기 | C-SPC:마크 | C-w:잘라내기 | M-w:복사 | C-y:붙여넣기 | C-z:실행취소 | C-s:검색 | C-x:명령 | C-q:종료"
-        );
+        assert_eq!(result, "C-x:명령 | C-g:취소 | C-s/r:검색 | C-/:실행취소 | M-d/BS:단어삭제");
     }
 
     #[test]
@@ -786,7 +783,7 @@ mod keybinding_tests {
         let mut state = EditorState::new(date);
         state.submode = Some(EditorSubMode::CtrlX);
         let result = build_editor_keybindings(&state);
-        assert_eq!(result, "C-s:저장 | C-c:뒤로 | Esc:취소");
+        assert_eq!(result, "C-s/s:저장 | k:저장 후 달력 | C-c:저장 후 종료 | u:실행취소 | C-g:취소");
     }
 
     #[test]
@@ -795,6 +792,6 @@ mod keybinding_tests {
         let mut state = EditorState::new(date);
         state.submode = Some(EditorSubMode::Search);
         let result = build_editor_keybindings(&state);
-        assert_eq!(result, "입력:검색어 | Enter:실행 | C-s/r:다음/이전 | Esc:취소");
+        assert_eq!(result, "입력:즉시 검색 | C-s/r:다음/이전 | Enter:확정 | C-g:취소·위치복원");
     }
 }

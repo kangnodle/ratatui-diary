@@ -29,6 +29,7 @@ pub enum Msg {
     EditorGotoLineStart,
     EditorGotoLineEnd,
     EditorExitSubMode,
+    EditorKeyboardQuit,
 
     // 에디터 - 문자 입력 (항상 활성)
     EditorInsertChar(char),
@@ -44,6 +45,8 @@ pub enum Msg {
     EditorDelete,
     EditorDeleteForward,
     EditorKillLine,
+    EditorKillWord,
+    EditorBackwardKillWord,
     EditorYank,
     EditorPaste,
 
@@ -53,6 +56,7 @@ pub enum Msg {
 
     // 에디터 - 검색
     EditorEnterSearchMode,
+    EditorEnterReverseSearchMode,
     EditorSearchChar(char),
     EditorSearchBackspace,
     EditorSearchNext,

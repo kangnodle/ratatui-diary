@@ -20,6 +20,9 @@ pub struct EditorState {
     pub editor: TextEditor,
     pub date: NaiveDate,
     pub submode: Option<EditorSubMode>,
+    pub search_origin: Option<(usize, usize)>,
+    pub search_backward: bool,
+    pub last_search_pattern: String,
 }
 
 impl EditorState {
@@ -28,6 +31,36 @@ impl EditorState {
             editor: TextEditor::new(),
             date,
             submode: None,
+            search_origin: None,
+            search_backward: false,
+            last_search_pattern: String::new(),
+        }
+    }
+
+    pub(crate) fn start_search(&mut self, backward: bool) {
+        if !self.search_pattern.is_empty() {
+            self.last_search_pattern = self.search_pattern.clone();
+        }
+        self.search_origin = Some((self.cursor_line, self.cursor_col));
+        self.search_backward = backward;
+        self.submode = Some(EditorSubMode::Search);
+        self.search_pattern.clear();
+        self.refresh_search();
+    }
+
+    pub(crate) fn refresh_search(&mut self) {
+        self.selection = None;
+        if self.search_pattern.is_empty() {
+            self.search_matches.clear();
+            self.current_match_index = 0;
+            if let Some((line, col)) = self.search_origin {
+                self.cursor_line = line;
+                self.cursor_col = col;
+            }
+        } else if self.search_backward {
+            self.execute_search_backward();
+        } else {
+            self.execute_search();
         }
     }
 }

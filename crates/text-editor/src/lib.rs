@@ -229,6 +229,10 @@ impl TextEditor {
         self.cursor_line = 0;
         self.cursor_col = 0;
         self.is_modified = false;
+        self.selection = None;
+        self.search_pattern.clear();
+        self.search_matches.clear();
+        self.current_match_index = 0;
 
         // 로드 후 히스토리 초기화
         self.edit_history.clear();
@@ -327,69 +331,61 @@ impl TextEditor {
     }
 
     pub fn move_word_next(&mut self) {
-        if self.cursor_line >= self.content.len() {
-            return;
-        }
-
-        let line = &self.content[self.cursor_line];
-        let byte_idx = self.char_idx_to_byte_idx(self.cursor_line, self.cursor_col);
-        let mut chars = line[byte_idx ..].char_indices().peekable();
-
-        while let Some((_, ch)) = chars.peek() {
-            if ch.is_whitespace() {
-                break;
+        while self.cursor_line < self.content.len() {
+            let mut in_word = false;
+            for ch in self.content[self.cursor_line].chars().skip(self.cursor_col) {
+                let word = ch.is_alphanumeric() || ch == '_';
+                if in_word && !word {
+                    return;
+                }
+                in_word |= word;
+                self.cursor_col += 1;
             }
-            chars.next();
-        }
-
-        while let Some((_, ch)) = chars.peek() {
-            if !ch.is_whitespace() {
-                break;
+            if in_word || self.cursor_line + 1 == self.content.len() {
+                return;
             }
-            chars.next();
-        }
-
-        if let Some((idx, _)) = chars.next() {
-            self.cursor_col = self.byte_idx_to_char_idx(self.cursor_line, byte_idx + idx);
-        } else {
-            self.cursor_col = line.chars().count();
+            self.cursor_line += 1;
+            self.cursor_col = 0;
         }
     }
 
     pub fn move_word_prev(&mut self) {
-        if self.cursor_line >= self.content.len() || self.cursor_col == 0 {
+        if self.cursor_line >= self.content.len() {
             return;
         }
-
-        let line = &self.content[self.cursor_line];
-        let mut pos = self.cursor_col;
-
-        pos = pos.saturating_sub(1);
-
-        while pos > 0 && line.chars().nth(pos).is_some_and(|c| c.is_whitespace()) {
-            pos -= 1;
+        loop {
+            let chars: Vec<char> = self.content[self.cursor_line].chars().take(self.cursor_col).collect();
+            let mut pos = chars.len();
+            while pos > 0 && !(chars[pos - 1].is_alphanumeric() || chars[pos - 1] == '_') {
+                pos -= 1;
+            }
+            let end = pos;
+            while pos > 0 && (chars[pos - 1].is_alphanumeric() || chars[pos - 1] == '_') {
+                pos -= 1;
+            }
+            self.cursor_col = pos;
+            if pos < end || self.cursor_line == 0 {
+                return;
+            }
+            self.cursor_line -= 1;
+            self.cursor_col = self.content[self.cursor_line].chars().count();
         }
-
-        while pos > 0 && line.chars().nth(pos - 1).is_some_and(|c| !c.is_whitespace()) {
-            pos -= 1;
-        }
-
-        self.cursor_col = pos;
     }
 
     pub fn execute_search(&mut self) {
+        self.search_matches.clear();
+        self.current_match_index = 0;
         if self.search_pattern.is_empty() {
             return;
         }
-
-        self.search_matches.clear();
+        let advance = self.search_pattern.chars().next().map_or(1, char::len_utf8);
         for (line_idx, line) in self.content.iter().enumerate() {
             let mut start_byte = 0;
             while let Some(pos_byte) = line[start_byte ..].find(&self.search_pattern) {
                 let match_byte = start_byte + pos_byte;
                 let match_char = self.byte_idx_to_char_idx(line_idx, match_byte);
                 self.search_matches.push((line_idx, match_char));
-                start_byte = match_byte + 1;
+                start_byte = match_byte + advance;
             }
         }
 
@@ -403,17 +399,20 @@ impl TextEditor {
                 | None => 0,
             };
 
-            let (line, col) = self.search_matches[self.current_match_index];
-            self.cursor_line = line;
-            self.cursor_col = col;
+            self.select_search_match(self.current_match_index);
+        }
+    }
 
-            let pattern_char_len = self.search_pattern.chars().count();
-            self.selection = Some(Selection {
-                anchor_line: line,
-                anchor_col: col,
-                cursor_line: line,
-                cursor_col: col + pattern_char_len,
-            });
+    pub fn execute_search_backward(&mut self) {
+        let origin = (self.cursor_line, self.cursor_col);
+        self.execute_search();
+        if !self.search_matches.is_empty() {
+            let index = self
+                .search_matches
+                .iter()
+                .rposition(|&position| position <= origin)
+                .unwrap_or(self.search_matches.len() - 1);
+            self.select_search_match(index);
         }
     }
 
@@ -422,19 +421,7 @@ impl TextEditor {
             return;
         }
 
-        self.current_match_index = (self.current_match_index + 1) % self.search_matches.len();
-
-        let (line, col) = self.search_matches[self.current_match_index];
-        self.cursor_line = line;
-        self.cursor_col = col;
-
-        let pattern_char_len = self.search_pattern.chars().count();
-        self.selection = Some(Selection {
-            anchor_line: line,
-            anchor_col: col,
-            cursor_line: line,
-            cursor_col: col + pattern_char_len,
-        });
+        self.select_search_match((self.current_match_index + 1) % self.search_matches.len());
     }
 
     pub fn search_prev(&mut self) {
@@ -448,7 +435,12 @@ impl TextEditor {
             self.current_match_index -= 1;
         }
 
-        let (line, col) = self.search_matches[self.current_match_index];
+        self.select_search_match(self.current_match_index);
+    }
+
+    fn select_search_match(&mut self, index: usize) {
+        self.current_match_index = index;
+        let (line, col) = self.search_matches[index];
         self.cursor_line = line;
         self.cursor_col = col;
 
