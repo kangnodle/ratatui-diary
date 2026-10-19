@@ -187,8 +187,6 @@ elif [[ "$out_dir" != /* ]]; then
 fi
 
 out_base="$package_name-$version-$target"
-staging_dir="$out_dir/staging"
-archive_root="$staging_dir/$out_base"
 archive_path="$out_dir/$out_base.tar.gz"
 
 printf '\n  Package : %s %s\n' "$package_name" "$version"
@@ -228,13 +226,10 @@ fi
 
 [[ -f "$bin_path" ]] || die "Release binary was not found: $bin_path"
 
+mkdir -p -- "$out_dir"
+staging_dir="$(mktemp -d "$out_dir/staging.XXXXXXXXXX")"
+archive_root="$staging_dir/$out_base"
 write_step "Stage : $staging_dir"
-case "$staging_dir" in
-    ''|/|./|../) die "Unsafe staging directory: $staging_dir" ;;
-esac
-if [[ -e "$staging_dir" ]]; then
-    rm -rf -- "$staging_dir"
-fi
 mkdir -p -- "$archive_root"
 cp -- "$bin_path" "$archive_root/"
 

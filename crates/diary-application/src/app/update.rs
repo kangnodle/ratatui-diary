@@ -118,6 +118,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             None
         },
         | Msg::LoadDiaryFailed(error) => {
+            model.screen = Screen::Calendar;
             model.error_message = Some(format!("{}: {}", model.settings.language.tr(crate::i18n::Text::LoadFailed), error));
             model.show_error_popup = true;
             None

@@ -71,3 +71,23 @@ fn missing_diaries_are_empty_but_other_read_errors_are_visible() {
     runtime.execute(Command::LoadDiary(date), &mut model);
     assert!(model.show_error_popup);
 }
+
+#[test]
+fn failed_open_cannot_relabel_the_previous_buffer_and_overwrite_another_diary() {
+    let (directory, mut runtime, mut model) = fixture();
+    let previous = model.editor_state.date;
+    model.editor_state.load_content("* Previous diary");
+    let selected = previous.succ_opt().unwrap();
+    let path = directory.path().join(format!("entries/{selected}.org"));
+    std::fs::write(&path, [0xff]).unwrap();
+    model.calendar_state.selected_date = selected;
+    let command = update(&mut model, Msg::CalendarSelectDate).unwrap();
+    runtime.execute(command, &mut model);
+    update(&mut model, Msg::DismissError);
+    assert_eq!(model.screen, Screen::Calendar);
+    assert_eq!(model.editor_state.date, previous);
+    assert_eq!(model.editor_state.get_content(), "* Previous diary");
+    update(&mut model, Msg::EditorEnterCtrlXMode);
+    assert!(update(&mut model, Msg::EditorCtrlXSave).is_none());
+    assert_eq!(std::fs::read(path).unwrap(), [0xff]);
+}

@@ -18,7 +18,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         | Msg::CalendarSelectDate => {
             let date = model.calendar_state.selected_date;
             model.screen = Screen::Editor;
-            model.editor_state.date = date;
             return Some(Command::LoadDiary(date));
         },
         | Msg::CalendarNextMonth => model.calendar_state.next_month(),

@@ -7,7 +7,7 @@
     검증 -> 릴리스 빌드 -> 스테이징 -> Inno Setup 컴파일 순으로 수행한다.
       1. Verify  : cargo fmt --check / clippy / test  (-SkipTest로 생략)
       2. Build   : cargo build --release -p ratatui-diary
-      3. Stage   : dist/staging/ 에 exe와 문서를 모은다
+      3. Stage   : dist/staging-<id>/ 에 exe와 문서를 모은다
       4. Package : dist/ratatui-diary.iss 를 생성하고 ISCC로 컴파일
 
     산출물: dist/ratatui-diary-<version>-<arch>-setup.exe
@@ -50,7 +50,9 @@
 param(
     [switch] $SkipTest,
     [switch] $SkipBuild,
+    [ValidatePattern('\A[0-9A-Za-z][0-9A-Za-z.+-]*\z')]
     [string] $Version,
+    [ValidatePattern('\A[A-Za-z0-9_.-]+\z')]
     [string] $Target,
     [string] $OutDir,
     [switch] $InstallInno
@@ -179,7 +181,7 @@ try {
 
     if (-not $OutDir) { $OutDir = Join-Path $ProjectRoot 'dist' }
     $OutDir     = [System.IO.Path]::GetFullPath($OutDir)
-    $stagingDir = Join-Path $OutDir 'staging'
+    $stagingDir = Join-Path $OutDir ("staging-" + [guid]::NewGuid().ToString('N'))
     $issPath    = Join-Path $OutDir "$PackageName.iss"
     $outBase    = "$PackageName-$Version-$($arch.Label)-setup"
     $setupPath  = Join-Path $OutDir "$outBase.exe"
@@ -239,10 +241,7 @@ try {
     # 3) 스테이징: 설치 파일에 담을 내용을 한 곳에 모은다
     # ------------------------------------------------------------------
     Write-Step "Stage : $stagingDir"
-    if (Test-Path -LiteralPath $stagingDir) {
-        Remove-Item -LiteralPath $stagingDir -Recurse -Force
-    }
-    New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
+    New-Item -ItemType Directory -Path $stagingDir | Out-Null
 
     Copy-Item -LiteralPath $binPath -Destination $stagingDir -Force
     foreach ($doc in @('README.md', 'LICENSE', 'LICENSE.md', 'LICENSE.txt')) {

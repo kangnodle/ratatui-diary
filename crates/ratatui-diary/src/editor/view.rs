@@ -57,30 +57,28 @@ pub fn render(f: &mut Frame, model: &Model) {
     let header = Paragraph::new(model.editor_state.date.to_string()).style(Style::default().add_modifier(Modifier::BOLD));
     f.render_widget(header, editor_chunks[0]);
 
-    // 에디터 내용 - 스타일이 적용된 라인들로 렌더링
-    let styled_lines = render_editor_content(&model.editor_state, palette);
     // 커서 표시
-    let display_width: u16 = if model.editor_state.cursor_line < model.editor_state.content.len() {
+    let display_width: usize = if model.editor_state.cursor_line < model.editor_state.content.len() {
         model.editor_state.content[model.editor_state.cursor_line]
             .chars()
             .take(model.editor_state.cursor_col)
             .map(|c| match UnicodeWidthChar::width(c) {
-                | Some(w) => w as u16,
+                | Some(w) => w,
                 | None => 0,
             })
             .sum()
     } else {
         0
     };
-    let scroll_x = display_width.saturating_sub(editor_chunks[1].width.saturating_sub(1));
+    let scroll_x = display_width.saturating_sub(usize::from(editor_chunks[1].width.saturating_sub(1)));
     let scroll_y = model
         .editor_state
         .cursor_line
-        .saturating_sub(usize::from(editor_chunks[1].height.saturating_sub(1)))
-        .min(u16::MAX as usize) as u16;
-    f.render_widget(Paragraph::new(styled_lines).scroll((scroll_y, scroll_x)), editor_chunks[1]);
-    let cursor_x = editor_chunks[1].x + display_width - scroll_x;
-    let cursor_y = editor_chunks[1].y + (model.editor_state.cursor_line as u16).saturating_sub(scroll_y);
+        .saturating_sub(usize::from(editor_chunks[1].height.saturating_sub(1)));
+    let styled_lines = render_editor_content(&model.editor_state, palette, editor_chunks[1], scroll_x, scroll_y);
+    f.render_widget(Paragraph::new(styled_lines), editor_chunks[1]);
+    let cursor_x = editor_chunks[1].x.saturating_add((display_width - scroll_x) as u16);
+    let cursor_y = editor_chunks[1].y.saturating_add((model.editor_state.cursor_line - scroll_y) as u16);
     if !model.show_settings && !model.show_error_popup && editor_chunks[1].width > 0 && editor_chunks[1].height > 0 {
         f.set_cursor_position((cursor_x, cursor_y));
     }
@@ -166,20 +164,40 @@ fn render_diary_preview(f: &mut Frame, area: Rect, content: &str, model: &Model)
 }
 
 /// 에디터 내용을 스타일이 적용된 Line 벡터로 변환
-fn render_editor_content(editor_state: &EditorState, palette: crate::settings::Palette) -> Vec<Line<'static>> {
+fn render_editor_content(editor_state: &EditorState, palette: crate::settings::Palette, area: Rect, scroll_x: usize, scroll_y: usize) -> Vec<Line<'static>> {
     let selection_range = editor_state.get_selection_range();
 
     editor_state
         .content
         .iter()
         .enumerate()
+        .skip(scroll_y)
+        .take(usize::from(area.height))
         .map(|(line_idx, line_text)| {
-            let mut spans = Vec::new();
-            let chars: Vec<char> = line_text.chars().collect();
+            let mut spans: Vec<Span<'static>> = Vec::new();
+            let mut display_col = 0;
+            let right = scroll_x + usize::from(area.width);
 
-            let mut col_idx = 0;
-            while col_idx < chars.len() {
-                let ch = chars[col_idx];
+            for (col_idx, ch) in line_text.chars().enumerate() {
+                let width = UnicodeWidthChar::width(ch).unwrap_or(0);
+                if width == 0 {
+                    if display_col > scroll_x
+                        && display_col <= right
+                        && !ch.is_control()
+                        && let Some(span) = spans.last_mut()
+                    {
+                        span.content.to_mut().push(ch);
+                    }
+                    continue;
+                }
+                if display_col >= right {
+                    break;
+                }
+                let next_col = display_col + width;
+                if next_col <= scroll_x {
+                    display_col = next_col;
+                    continue;
+                }
 
                 let style = get_char_style(
                     line_idx,
@@ -191,8 +209,13 @@ fn render_editor_content(editor_state: &EditorState, palette: crate::settings::P
                     palette,
                 );
 
-                spans.push(Span::styled(ch.to_string(), style));
-                col_idx += 1;
+                let visible = if display_col < scroll_x || next_col > right {
+                    " ".repeat(next_col.min(right) - display_col.max(scroll_x))
+                } else {
+                    ch.to_string()
+                };
+                spans.push(Span::styled(visible, style));
+                display_col = next_col;
             }
 
             if spans.is_empty() {

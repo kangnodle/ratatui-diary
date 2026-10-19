@@ -8,6 +8,10 @@
   diary-domain = { workspace = true }
   chrono  = { workspace = true }
   dirs    = { workspace = true }
-
-[dev-dependencies]
   tempfile = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+  rustix = { version = "1.1.5", features = ["fs"] }
+
+[target.'cfg(windows)'.dependencies]
+  windows-sys = { version = "0.61.2", features = ["Win32_Storage_FileSystem"] }

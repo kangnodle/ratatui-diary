@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use diary_domain::{DiaryEntry,
                    EntryFormat};
+mod file_io;
 pub mod settings;
 use std::{collections::HashSet,
           ffi::OsString,
@@ -13,10 +14,15 @@ pub struct Storage {
     entries_dir: PathBuf,
 }
 
+/// Daily documents are bounded before parsing, rendering or recording undo
+/// state.
+pub const MAX_DIARY_BYTES: usize = 4 * 1024 * 1024;
+
 impl Storage {
     pub fn with_dir(base_dir: &Path) -> io::Result<Self> {
         let entries_dir = base_dir.join("entries");
-        fs::create_dir_all(&entries_dir)?;
+        file_io::create_directory(&entries_dir)?;
+        let entries_dir = fs::canonicalize(entries_dir)?;
         Ok(Self {
             entries_dir,
         })
@@ -36,7 +42,7 @@ impl Storage {
 
     pub fn save(&self, date: NaiveDate, content: &str) -> io::Result<()> {
         let path = self.get_path(date)?;
-        fs::write(path, content)
+        file_io::atomic_write(&path, content, MAX_DIARY_BYTES)
     }
 
     pub fn load(&self, date: NaiveDate) -> io::Result<String> { self.load_entry(date).map(|entry| entry.content) }
@@ -49,13 +55,16 @@ impl Storage {
             EntryFormat::Org
         };
         Ok(DiaryEntry {
-            content: fs::read_to_string(path)?,
+            content: file_io::read_text(&path, MAX_DIARY_BYTES)?,
             format,
         })
     }
 
     pub fn delete(&self, date: NaiveDate) -> io::Result<()> {
         let path = self.get_path(date)?;
+        if path.extension().is_some_and(|ext| ext == "org") {
+            file_io::regular_file(&path.with_extension("md"))?;
+        }
         fs::remove_file(&path)?;
         // Remove a shadowed legacy entry too, so a deleted date cannot
         // reappear.
@@ -69,11 +78,13 @@ impl Storage {
     }
 
     pub fn scan_entries(&self) -> io::Result<HashSet<NaiveDate>> {
+        file_io::check_directory(&self.entries_dir)?;
         let mut entries = HashSet::new();
 
         for entry in fs::read_dir(&self.entries_dir)? {
             let entry = entry?;
-            if !entry.file_type()?.is_file() {
+            let metadata = entry.metadata()?;
+            if file_io::is_link(&metadata) || !metadata.is_file() {
                 continue;
             }
             if let Some(date) = parse_filename(entry.file_name()) {
@@ -86,7 +97,8 @@ impl Storage {
 
     /// Existing Markdown entries keep their format; new dates default to Org.
     pub fn is_markdown(&self, date: NaiveDate) -> io::Result<bool> {
-        Ok(!self.entries_dir.join(format!("{date}.org")).try_exists()? && self.entries_dir.join(format!("{date}.md")).try_exists()?)
+        file_io::check_directory(&self.entries_dir)?;
+        Ok(!file_io::regular_file(&self.entries_dir.join(format!("{date}.org")))? && file_io::regular_file(&self.entries_dir.join(format!("{date}.md")))?)
     }
 
     fn get_path(&self, date: NaiveDate) -> io::Result<PathBuf> {

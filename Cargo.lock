@@ -442,7 +442,9 @@ dependencies = [
  "chrono",
  "diary-domain",
  "dirs",
+ "rustix",
  "tempfile",
+ "windows-sys",
 ]
 
 [[package]]

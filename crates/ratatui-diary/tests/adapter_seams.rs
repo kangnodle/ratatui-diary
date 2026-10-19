@@ -47,3 +47,50 @@ fn terminal_adapter_preserves_modifiers_and_repeat_but_filters_release() {
         LogicalCode::Unknown
     );
 }
+
+#[test]
+fn long_diary_lines_do_not_overflow_and_the_cursor_remains_visible() {
+    let date = NaiveDate::from_ymd_opt(2026, 10, 19).unwrap();
+    let mut model = Model::new(date, Default::default());
+    model.screen = diary_application::Screen::Editor;
+    model.editor_state.load_content(&format!("{}END", "한".repeat(40_000)));
+    model.editor_state.cursor_col = 40_003;
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    terminal.draw(|frame| app::view(frame, &model)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let text: String = (0 .. 40).map(|x| buffer[(x, 1)].symbol()).collect();
+    assert!(text.contains("END"));
+}
+
+#[test]
+fn many_diary_lines_do_not_wrap_vertical_cursor_coordinates() {
+    let date = NaiveDate::from_ymd_opt(2026, 10, 19).unwrap();
+    let mut model = Model::new(date, Default::default());
+    model.screen = diary_application::Screen::Editor;
+    model.editor_state.load_content(&format!("{}END", "\n".repeat(70_000)));
+    model.editor_state.cursor_line = 70_000;
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
+    terminal.draw(|frame| app::view(frame, &model)).unwrap();
+    let buffer = terminal.backend().buffer();
+    let text: String = (0 .. 40).map(|x| buffer[(x, 20)].symbol()).collect();
+    assert!(text.contains("END"));
+}
+
+#[test]
+fn terminal_control_characters_are_not_emitted_and_source_contents_are_preserved() {
+    let date = NaiveDate::from_ymd_opt(2026, 10, 19).unwrap();
+    let mut model = Model::new(date, Default::default());
+    let content = "* diary\x1b]52;c;c2VjcmV0\x07\n\x1b[2Jbody\u{009b}31m";
+    model.editor_state.load_content(content);
+    model.error_message = Some(content.to_string());
+    let mut terminal = Terminal::new(TestBackend::new(100, 30)).unwrap();
+    for screen in [diary_application::Screen::Calendar, diary_application::Screen::Editor] {
+        model.screen = screen;
+        for popup in [false, true] {
+            model.show_error_popup = popup;
+            terminal.draw(|frame| app::view(frame, &model)).unwrap();
+            assert!(terminal.backend().buffer().content.iter().all(|cell| !cell.symbol().contains(char::is_control)));
+        }
+    }
+    assert_eq!(model.editor_state.get_content(), content);
+}

@@ -96,10 +96,9 @@ fn test_full_diary_workflow() {
     // Then: LoadDiary 명령이 반환되어야 함
     assert!(cmd.is_some());
     assert_eq!(model.screen, Screen::Editor);
-    assert_eq!(model.editor_state.date, date);
-
     // When: 일기 로드 성공
     update::update(&mut model, Msg::LoadDiarySuccess(date, "test".to_string(), diary_domain::EntryFormat::Org));
+    assert_eq!(model.editor_state.date, date);
 
     // Then: 내용이 로드됨
     assert_eq!(model.editor_state.content, vec!["test".to_string()]);

@@ -1,9 +1,11 @@
 //! Filesystem adapter for the domain's preferences format.
+use crate::file_io;
 use diary_domain::settings::Settings;
-use std::{fs,
-          io,
+use std::{io,
           path::{Path,
                  PathBuf}};
+
+pub const MAX_SETTINGS_BYTES: usize = 64 * 1024;
 
 pub fn path() -> io::Result<PathBuf> {
     dirs::config_dir()
@@ -12,7 +14,7 @@ pub fn path() -> io::Result<PathBuf> {
 }
 
 pub fn load(path: &Path) -> io::Result<Settings> {
-    let source = match fs::read_to_string(path) {
+    let source = match file_io::read_text(path, MAX_SETTINGS_BYTES) {
         | Ok(source) => source,
         | Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(Settings::default()),
         | Err(error) => return Err(error),
@@ -21,8 +23,8 @@ pub fn load(path: &Path) -> io::Result<Settings> {
 }
 
 pub fn save(settings: Settings, path: &Path) -> io::Result<()> {
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
+    if let Some(parent) = path.parent().filter(|path| !path.as_os_str().is_empty()) {
+        file_io::create_directory(parent)?;
     }
-    fs::write(path, settings.serialize())
+    file_io::atomic_write(path, &settings.serialize(), MAX_SETTINGS_BYTES)
 }
