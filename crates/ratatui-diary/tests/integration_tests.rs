@@ -1,4 +1,5 @@
-use chrono::NaiveDate;
+use chrono::{Datelike,
+             NaiveDate};
 use crossterm::event::{KeyCode,
                        KeyEvent,
                        KeyEventKind,
@@ -26,10 +27,17 @@ fn test_application_startup() {
     let entries = storage.scan_entries().unwrap();
 
     // When: Model 생성
+    let before = chrono::Local::now().date_naive();
     let model = Model::new(entries, storage);
+    let after = chrono::Local::now().date_naive();
 
     // Then: Calendar 화면으로 시작 (Emacs — 모드리스)
     assert_eq!(model.screen, Screen::Calendar);
+    let selected = model.calendar_state.selected_date;
+    assert!((before ..= after).contains(&selected));
+    assert_eq!(model.calendar_state.current_year, selected.year());
+    assert_eq!(model.calendar_state.current_month, selected.month());
+    assert_eq!(model.editor_state.date, selected);
     assert!(!model.show_error_popup);
     assert!(model.error_message.is_none());
 }

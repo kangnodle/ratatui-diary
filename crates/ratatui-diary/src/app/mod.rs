@@ -56,7 +56,10 @@ impl Model {
             settings_path: None,
             show_settings: false,
             settings_row: 0,
-            calendar_state: CalendarState::new(today.year(), today.month()),
+            calendar_state: CalendarState {
+                selected_date: today,
+                ..CalendarState::new(today.year(), today.month())
+            },
             editor_state: EditorState::new(today),
             diary_entries: DiaryIndex {
                 entries,
