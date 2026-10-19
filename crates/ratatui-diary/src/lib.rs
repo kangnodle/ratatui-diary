@@ -17,8 +17,8 @@ pub mod message;
 pub use app::Model;
 pub use diary_storage as storage;
 pub use markdown_render as markdown;
-pub use org_render as org;
 pub use message::Msg;
+pub use org_render as org;
 
 /// 기존 공개 경로(`ratatui_diary::model::*`) 호환을 위한 facade.
 /// 실제 타입은 각 기능 모듈에 정의되어 있다.

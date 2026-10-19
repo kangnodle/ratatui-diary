@@ -1,5 +1,5 @@
 use ratatui::{style::{Modifier,
-                     Style},
+                      Style},
               text::{Line,
                      Text}};
 
@@ -29,7 +29,7 @@ pub fn render_to_text(org: &str) -> Text<'static> {
                 Style::default().add_modifier(Modifier::BOLD),
             ));
         } else {
-            // shortcut: body markup stays verbatim; add an Org parser when rich body rendering is needed.
+            // shortcut: body stays raw; add an Org parser for rich rendering.
             lines.push(Line::raw(line.to_owned()));
         }
     }

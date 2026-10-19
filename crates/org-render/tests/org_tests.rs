@@ -1,9 +1,7 @@
 use org_render::render_to_text;
 use ratatui::style::Modifier;
 
-fn rendered(org: &str) -> String {
-    render_to_text(org).lines.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n")
-}
+fn rendered(org: &str) -> String { render_to_text(org).lines.iter().map(ToString::to_string).collect::<Vec<_>>().join("\n") }
 
 #[test]
 fn headlines_use_repeating_org_bullets_and_keep_their_titles() {
@@ -28,7 +26,11 @@ fn empty_documents_blank_headlines_and_crlf_are_supported() {
 #[test]
 fn literal_blocks_do_not_turn_stars_into_headlines() {
     for block in ["src", "example", "export", "comment"] {
-        let literal = format!("  #+BEGIN_{} rust\n* literal\n** literal\n#+end_other\n* still literal\n  #+END_{}", block.to_uppercase(), block.to_uppercase());
+        let literal = format!(
+            "  #+BEGIN_{} rust\n* literal\n** literal\n#+end_other\n* still literal\n  #+END_{}",
+            block.to_uppercase(),
+            block.to_uppercase()
+        );
         assert_eq!(rendered(&format!("{literal}\n* 제목")), format!("{literal}\n◉ 제목"));
     }
 }

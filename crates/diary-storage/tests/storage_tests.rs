@@ -77,7 +77,15 @@ fn scanning_accepts_org_and_markdown_and_ignores_other_files_and_directories() {
     let temp = TempDir::new().unwrap();
     let storage = Storage::with_dir(temp.path()).unwrap();
     let entries = temp.path().join("entries");
-    for name in ["2026-02-14.org", "2026-02-14.md", "2026-02-15.md", "2026-02-30.org", "notes.org", "2026-02-16.txt", "2026-02-17.org.bak"] {
+    for name in [
+        "2026-02-14.org",
+        "2026-02-14.md",
+        "2026-02-15.md",
+        "2026-02-30.org",
+        "notes.org",
+        "2026-02-16.txt",
+        "2026-02-17.org.bak",
+    ] {
         std::fs::write(entries.join(name), "test").unwrap();
     }
     std::fs::create_dir(entries.join("2026-02-18.org")).unwrap();

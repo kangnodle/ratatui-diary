@@ -128,6 +128,66 @@ fn every_language_and_theme_renders_screens_and_overlays() {
 }
 
 #[test]
+fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
+    for legacy in [false, true] {
+        let dir = TempDir::new().unwrap();
+        let mut model = model(&dir);
+        let date = chrono::NaiveDate::from_ymd_opt(2026, 10, 19).unwrap();
+        if legacy {
+            std::fs::write(dir.path().join("entries/2026-10-19.md"), "# Existing diary").unwrap();
+        }
+        model.calendar_state.selected_date = date;
+        let command = app::update(&mut model, Msg::CalendarSelectDate).unwrap();
+        app::execute_command(command, &mut model).unwrap();
+        assert_eq!(model.screen, Screen::Editor);
+        assert_eq!(model.editor_state.get_content(), if legacy { "# Existing diary" } else { "" });
+
+        let content = if legacy {
+            "# Today\n## Lessons\nDiary body"
+        } else {
+            "* Today\n** Lessons\nDiary body"
+        };
+        model.editor_state.load_content(content);
+        for language in [Language::Korean, Language::English] {
+            model.settings.language = language;
+            let (text, _) = rendered(&model, 160, 30);
+            assert!(text.contains(if legacy {
+                language.text("Markdown 미리보기", "Markdown preview")
+            } else {
+                language.text("Org 미리보기", "Org preview")
+            }));
+            assert_eq!(text.contains("◉ Today"), !legacy);
+            assert_eq!(text.contains("○ Lessons"), !legacy);
+            assert!(text.contains("Diary body"));
+            assert_eq!(model.editor_state.get_content(), content);
+        }
+
+        app::update(&mut model, Msg::EditorEnterCtrlXMode);
+        let command = app::update(&mut model, Msg::EditorCtrlXSave).unwrap();
+        app::execute_command(command, &mut model).unwrap();
+        assert!(!model.editor_state.is_modified);
+        assert!(!model.show_error_popup);
+        let extension = if legacy { "md" } else { "org" };
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join(format!("entries/{date}.{extension}"))).unwrap(),
+            content
+        );
+        assert!(model.diary_entries.entries.contains(&date));
+
+        app::update(&mut model, Msg::EditorEnterCtrlXMode);
+        app::update(&mut model, Msg::EditorCtrlXBack);
+        assert_eq!(model.screen, Screen::Calendar);
+        let (text, _) = rendered(&model, 160, 30);
+        assert_eq!(text.contains("◉ Today"), !legacy);
+        assert_eq!(text.contains("○ Lessons"), !legacy);
+        assert!(text.contains("Diary body"));
+        let command = app::update(&mut model, Msg::CalendarSelectDate).unwrap();
+        app::execute_command(command, &mut model).unwrap();
+        assert_eq!(model.editor_state.get_content(), content);
+    }
+}
+
+#[test]
 fn save_failure_is_visible_and_error_popup_blocks_input() {
     let dir = TempDir::new().unwrap();
     let mut model = model(&dir);

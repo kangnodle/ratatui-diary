@@ -44,7 +44,8 @@ impl Storage {
     pub fn delete(&self, date: NaiveDate) -> io::Result<()> {
         let path = self.get_path(date)?;
         fs::remove_file(&path)?;
-        // Remove a shadowed legacy entry too, so a deleted date cannot reappear.
+        // Remove a shadowed legacy entry too, so a deleted date cannot
+        // reappear.
         if path.extension().is_some_and(|ext| ext == "org") {
             match fs::remove_file(path.with_extension("md")) {
                 | Err(e) if e.kind() == io::ErrorKind::NotFound => {},
