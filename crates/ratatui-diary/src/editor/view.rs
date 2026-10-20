@@ -5,7 +5,6 @@ use crate::{app::Model,
                             EditorSubMode}};
 use ratatui::{Frame,
               layout::{Constraint,
-                       Direction,
                        Layout,
                        Rect},
               style::{Color,
@@ -32,26 +31,8 @@ pub fn build_editor_keybindings(state: &EditorState) -> String {
 }
 
 pub fn render(f: &mut Frame, model: &Model) {
-    let lang = model.settings.language;
     let palette = crate::theme::palette(model.settings.theme);
-    // 메인 레이아웃: 수평 분할 (50:50)
-    let main_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(50), // 왼쪽: 에디터
-            Constraint::Percentage(50), // 오른쪽: 일기 미리보기
-        ])
-        .split(f.area());
-
-    // 왼쪽: 에디터 영역 (기존 레이아웃)
-    let editor_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1), // 날짜 헤더
-            Constraint::Min(0),    // 에디터 영역
-            Constraint::Length(3), // 상태바 + 키바인딩 도움말
-        ])
-        .split(main_chunks[0]);
+    let editor_chunks = screen_chunks(model, f.area());
 
     // 헤더: 날짜
     let header = Paragraph::new(model.editor_state.date.to_string()).style(Style::default().add_modifier(Modifier::BOLD));
@@ -83,34 +64,8 @@ pub fn render(f: &mut Frame, model: &Model) {
         f.set_cursor_position((cursor_x, cursor_y));
     }
 
-    // 하단바: 상태 정보와 키바인딩 표시
     let helix = model.settings.keybindings == crate::settings::Keybindings::Helix;
-    let mode_text = if helix {
-        super::helix::status(&model.editor_state)
-    } else {
-        localize_status(build_status_text(&model.editor_state), lang)
-    };
-    let keybindings = if helix {
-        super::helix::help(&model.editor_state, lang)
-    } else {
-        lang.tr(match model.editor_state.submode {
-            | None => crate::i18n::Text::EditorKeys,
-            | Some(EditorSubMode::CtrlX) => crate::i18n::Text::CommandKeys,
-            | Some(EditorSubMode::Search) => crate::i18n::Text::SearchKeys,
-        })
-    };
-    let status_text = format!(
-        "{} | F2:{} · {} / {}\n{}",
-        mode_text,
-        lang.tr(crate::i18n::Text::Settings),
-        lang.tr(crate::i18n::Text::LanguageName),
-        model.settings.theme.label(lang),
-        keybindings
-    );
-    let statusbar = Paragraph::new(status_text).style(Style::default().add_modifier(Modifier::BOLD)).wrap(Wrap {
-        trim: false,
-    });
-    f.render_widget(statusbar, editor_chunks[2]);
+    f.render_widget(Paragraph::new(footer(model, editor_chunks[2].width)), editor_chunks[2]);
     if helix
         && matches!(
             model.editor_state.helix.prefix,
@@ -137,8 +92,53 @@ pub fn render(f: &mut Frame, model: &Model) {
 
     // 오른쪽: 일기 미리보기
     let content = model.editor_state.get_content();
-    render_diary_preview(f, main_chunks[1], &content, model);
+    render_diary_preview(f, editor_chunks[3], &content, model);
 }
+
+fn footer(model: &Model, width: u16) -> ratatui::text::Text<'static> {
+    let lang = model.settings.language;
+    let palette = crate::theme::palette(model.settings.theme);
+    let helix = model.settings.keybindings == crate::settings::Keybindings::Helix;
+    let mode_text = if helix {
+        super::helix::status(&model.editor_state)
+    } else {
+        localize_status(build_status_text(&model.editor_state), lang)
+    };
+    let keybindings = if helix {
+        super::helix::help(&model.editor_state, lang)
+    } else {
+        lang.tr(match model.editor_state.submode {
+            | None => crate::i18n::Text::EditorKeys,
+            | Some(EditorSubMode::CtrlX) => crate::i18n::Text::CommandKeys,
+            | Some(EditorSubMode::Search) => crate::i18n::Text::SearchKeys,
+        })
+    };
+    let help = format!("F2:{} | {}", lang.tr(crate::i18n::Text::Settings), keybindings);
+    let mut text = crate::key_help::build(&help, width, palette);
+    text.lines.insert(
+        0,
+        Line::from(format!(
+            "{} · {} / {}",
+            mode_text,
+            lang.tr(crate::i18n::Text::LanguageName),
+            model.settings.theme.label(lang)
+        )),
+    );
+    text
+}
+
+fn screen_chunks(model: &Model, area: Rect) -> [Rect; 4] {
+    let main = Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).split(area);
+    let chunks = Layout::vertical([
+        Constraint::Length(1),
+        Constraint::Min(0),
+        Constraint::Length((footer(model, main[0].width).height() as u16).min(main[0].height.saturating_sub(2))),
+    ])
+    .split(main[0]);
+    [chunks[0], chunks[1], chunks[2], main[1]]
+}
+
+pub fn viewport_height(model: &Model, area: Rect) -> usize { usize::from(screen_chunks(model, area)[1].height).max(1) }
 
 fn render_diary_preview(f: &mut Frame, area: Rect, content: &str, model: &Model) {
     let markdown = model.editor_state.format == diary_domain::EntryFormat::Markdown;

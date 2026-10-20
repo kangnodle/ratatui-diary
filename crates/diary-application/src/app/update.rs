@@ -18,10 +18,31 @@ pub enum Command {
     LoadDiary(NaiveDate),
     SaveDiary(NaiveDate, String),
     DeleteDiary(NaiveDate),
+    Search(u64, String),
 }
 
 pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
     match msg {
+        | Msg::OpenSearch if model.screen == Screen::Calendar => {
+            model.screen = Screen::Search;
+            model.search.editing = true;
+            model.editor_state.submode = None;
+            model.editor_state.helix.prefix = None;
+            None
+        },
+        | Msg::SearchFinished(id, result) => {
+            if model.screen == Screen::Search && id == model.search.revision {
+                model.search.busy = false;
+                match result {
+                    | Ok(output) => {
+                        model.search.results = output.results;
+                        model.search.notice = output.notice;
+                    },
+                    | Err(error) => model.search.notice = Some(error),
+                }
+            }
+            None
+        },
         | Msg::ToggleSettings => {
             model.show_settings = !model.show_settings;
             None
@@ -106,9 +127,33 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         // ===== 파일 I/O 결과 =====
         | Msg::LoadDiarySuccess(date, content, format) => {
             if model.screen == Screen::Editor {
+                let target = match model.search.target.take() {
+                    | Some(hit) => match crate::search::locate(&hit, &content) {
+                        | Some(position) => Some(position),
+                        | None =>
+                            return update(
+                                model,
+                                Msg::LoadDiaryFailed(
+                                    model
+                                        .settings
+                                        .language
+                                        .text(
+                                            "검색한 구절이 변경되었거나 삭제되었습니다. 다시 검색하세요.",
+                                            "The passage changed or was deleted. Please search again.",
+                                        )
+                                        .to_string(),
+                                ),
+                            ),
+                    },
+                    | None => None,
+                };
                 model.editor_state.date = date;
                 model.editor_state.format = format;
                 model.editor_state.load_content(&content);
+                if let Some((line, col)) = target {
+                    model.editor_state.cursor_line = line.min(model.editor_state.content.len().saturating_sub(1));
+                    model.editor_state.cursor_col = col.min(model.editor_state.content[model.editor_state.cursor_line].chars().count());
+                }
                 model.editor_state.submode = None;
                 model.editor_state.search_origin = None;
                 if model.settings.keybindings == crate::settings::Keybindings::Helix {
@@ -118,6 +163,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             None
         },
         | Msg::LoadDiaryFailed(error) => {
+            model.search.target = None;
             model.screen = Screen::Calendar;
             model.error_message = Some(format!("{}: {}", model.settings.language.tr(crate::i18n::Text::LoadFailed), error));
             model.show_error_popup = true;
@@ -162,6 +208,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         | other => match model.screen {
             | Screen::Calendar => calendar::update::update(model, other),
             | Screen::Editor => editor::update::update(model, other),
+            | Screen::Search => crate::search::update(model, other),
         },
     }
 }

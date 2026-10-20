@@ -1,0 +1,620 @@
+{
+  "environment": {
+    "date": "2026-10-20",
+    "os": "Windows ARM64",
+    "cpu": "Snapdragon X1E80100 12-core",
+    "rust": "1.100.0-nightly (809936eac 2026-09-12)",
+    "profile": "release",
+    "intra_threads": 2,
+    "model_files_pre_cached": true,
+    "synthetic_diaries": 80,
+    "initial_passages": 240,
+    "trials": 3
+  },
+  "verification": {
+    "scenarios": 18,
+    "hits_identical_in_order": 600,
+    "source_jumps_per_phase": 1200,
+    "keymaps": [
+      "Emacs",
+      "Helix"
+    ]
+  },
+  "before": [
+    [
+      {
+        "metrics": {
+          "documents_ms": 2402.1987,
+          "embedded_passages": 240,
+          "embedding_calls": 80,
+          "model_ms": 1588.8012,
+          "query_ms": 4.312200000000001,
+          "ranking_ms": 0.4571,
+          "refresh_ms": 7.7641,
+          "total_ms": 4003.5337999999997
+        },
+        "scenario": "cold"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0022,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.0003,
+          "query_ms": 4.2295,
+          "ranking_ms": 0.24489999999999998,
+          "refresh_ms": 18.5957,
+          "total_ms": 23.073
+        },
+        "query": "진로에 대한 불안",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0015999999999999999,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "query_ms": 3.895,
+          "ranking_ms": 0.42410000000000003,
+          "refresh_ms": 6.5547,
+          "total_ms": 10.8758
+        },
+        "query": "파스타",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0017000000000000001,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "query_ms": 4.0961,
+          "ranking_ms": 0.23220000000000002,
+          "refresh_ms": 6.1509,
+          "total_ms": 10.4817
+        },
+        "query": "친구와 즐거운 시간",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 2403.683,
+          "embedded_passages": 240,
+          "embedding_calls": 80,
+          "model_ms": 1462.4814,
+          "query_ms": 4.3929,
+          "ranking_ms": 0.2612,
+          "refresh_ms": 6.853,
+          "total_ms": 3877.6722
+        },
+        "scenario": "reopened"
+      },
+      {
+        "metrics": {
+          "documents_ms": 38.1053,
+          "embedded_passages": 4,
+          "embedding_calls": 1,
+          "model_ms": 0.00019999999999999998,
+          "query_ms": 4.7307,
+          "ranking_ms": 0.277,
+          "refresh_ms": 7.8299,
+          "total_ms": 50.943799999999996
+        },
+        "scenario": "edited"
+      }
+    ],
+    [
+      {
+        "metrics": {
+          "documents_ms": 2402.3149,
+          "embedded_passages": 240,
+          "embedding_calls": 80,
+          "model_ms": 1488.0099,
+          "query_ms": 4.758,
+          "ranking_ms": 0.3572,
+          "refresh_ms": 7.204000000000001,
+          "total_ms": 3902.6448
+        },
+        "scenario": "cold"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0025,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "query_ms": 3.9782999999999995,
+          "ranking_ms": 0.2827,
+          "refresh_ms": 6.5167,
+          "total_ms": 10.780700000000001
+        },
+        "query": "진로에 대한 불안",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0015999999999999999,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "query_ms": 3.9075,
+          "ranking_ms": 0.4233,
+          "refresh_ms": 6.2869,
+          "total_ms": 10.6197
+        },
+        "query": "파스타",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0022,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "query_ms": 4.214200000000001,
+          "ranking_ms": 0.2712,
+          "refresh_ms": 7.1689,
+          "total_ms": 11.657
+        },
+        "query": "친구와 즐거운 시간",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 2377.4377,
+          "embedded_passages": 240,
+          "embedding_calls": 80,
+          "model_ms": 1498.5547000000001,
+          "query_ms": 4.1312,
+          "ranking_ms": 0.27809999999999996,
+          "refresh_ms": 6.9483,
+          "total_ms": 3887.3509
+        },
+        "scenario": "reopened"
+      },
+      {
+        "metrics": {
+          "documents_ms": 37.9396,
+          "embedded_passages": 4,
+          "embedding_calls": 1,
+          "model_ms": 9.999999999999999e-05,
+          "query_ms": 3.9236999999999997,
+          "ranking_ms": 0.2692,
+          "refresh_ms": 6.971500000000001,
+          "total_ms": 49.1049
+        },
+        "scenario": "edited"
+      }
+    ],
+    [
+      {
+        "metrics": {
+          "documents_ms": 2526.6166000000003,
+          "embedded_passages": 240,
+          "embedding_calls": 80,
+          "model_ms": 1354.2985,
+          "query_ms": 4.3915,
+          "ranking_ms": 0.2586,
+          "refresh_ms": 6.8473,
+          "total_ms": 3892.4132
+        },
+        "scenario": "cold"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0022,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "query_ms": 4.1024,
+          "ranking_ms": 0.2564,
+          "refresh_ms": 7.613499999999999,
+          "total_ms": 11.975200000000001
+        },
+        "query": "진로에 대한 불안",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0021,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "query_ms": 3.7926,
+          "ranking_ms": 0.4708,
+          "refresh_ms": 8.1,
+          "total_ms": 12.365900000000002
+        },
+        "query": "파스타",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0023,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "query_ms": 4.5904,
+          "ranking_ms": 0.27940000000000004,
+          "refresh_ms": 7.449199999999999,
+          "total_ms": 12.3217
+        },
+        "query": "친구와 즐거운 시간",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 2410.495,
+          "embedded_passages": 240,
+          "embedding_calls": 80,
+          "model_ms": 1299.5985,
+          "query_ms": 4.2135,
+          "ranking_ms": 0.2698,
+          "refresh_ms": 7.051,
+          "total_ms": 3721.6286
+        },
+        "scenario": "reopened"
+      },
+      {
+        "metrics": {
+          "documents_ms": 38.301700000000004,
+          "embedded_passages": 4,
+          "embedding_calls": 1,
+          "model_ms": 9.999999999999999e-05,
+          "query_ms": 4.0148,
+          "ranking_ms": 0.2627,
+          "refresh_ms": 6.5985000000000005,
+          "total_ms": 49.1785
+        },
+        "scenario": "edited"
+      }
+    ]
+  ],
+  "after": [
+    [
+      {
+        "metrics": {
+          "documents_ms": 2234.5418,
+          "embedded_passages": 240,
+          "embedding_calls": 15,
+          "model_ms": 1253.8829,
+          "persist_ms": 103.9271,
+          "query_ms": 4.861,
+          "ranking_ms": 0.6752,
+          "refresh_ms": 8.6478,
+          "total_ms": 3606.5364
+        },
+        "scenario": "cold"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.003,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "persist_ms": 0.0005,
+          "query_ms": 4.109500000000001,
+          "ranking_ms": 0.27940000000000004,
+          "refresh_ms": 7.8723,
+          "total_ms": 12.265099999999999
+        },
+        "query": "진로에 대한 불안",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0026,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "persist_ms": 0.0003,
+          "query_ms": 4.527200000000001,
+          "ranking_ms": 0.4369,
+          "refresh_ms": 7.361999999999999,
+          "total_ms": 12.3295
+        },
+        "query": "파스타",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0021,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "persist_ms": 0.00019999999999999998,
+          "query_ms": 4.9961,
+          "ranking_ms": 0.24830000000000002,
+          "refresh_ms": 6.3020000000000005,
+          "total_ms": 11.5495
+        },
+        "query": "친구와 즐거운 시간",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0040999999999999995,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 1247.5267999999999,
+          "persist_ms": 0.0005,
+          "query_ms": 5.2719000000000005,
+          "ranking_ms": 0.2771,
+          "refresh_ms": 20.037300000000002,
+          "total_ms": 1273.1182999999999
+        },
+        "scenario": "reopened"
+      },
+      {
+        "metrics": {
+          "documents_ms": 43.0989,
+          "embedded_passages": 4,
+          "embedding_calls": 1,
+          "model_ms": 9.999999999999999e-05,
+          "persist_ms": 1.9713,
+          "query_ms": 4.9562,
+          "ranking_ms": 0.3059,
+          "refresh_ms": 7.5185,
+          "total_ms": 57.8519
+        },
+        "scenario": "edited"
+      }
+    ],
+    [
+      {
+        "metrics": {
+          "documents_ms": 2298.0746,
+          "embedded_passages": 240,
+          "embedding_calls": 15,
+          "model_ms": 1254.575,
+          "persist_ms": 118.6721,
+          "query_ms": 5.6987000000000005,
+          "ranking_ms": 0.3092,
+          "refresh_ms": 10.3873,
+          "total_ms": 3687.7174
+        },
+        "scenario": "cold"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0024,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.0,
+          "persist_ms": 0.0003,
+          "query_ms": 4.887,
+          "ranking_ms": 0.3427,
+          "refresh_ms": 6.6268,
+          "total_ms": 11.8597
+        },
+        "query": "진로에 대한 불안",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0058000000000000005,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "persist_ms": 0.0006,
+          "query_ms": 4.6062,
+          "ranking_ms": 0.5008,
+          "refresh_ms": 8.2123,
+          "total_ms": 13.3262
+        },
+        "query": "파스타",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0028,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "persist_ms": 0.0003,
+          "query_ms": 4.9309,
+          "ranking_ms": 0.2714,
+          "refresh_ms": 7.487,
+          "total_ms": 12.6928
+        },
+        "query": "친구와 즐거운 시간",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0036,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 1241.2096,
+          "persist_ms": 0.0005,
+          "query_ms": 4.792700000000001,
+          "ranking_ms": 0.2875,
+          "refresh_ms": 18.5537,
+          "total_ms": 1264.8484
+        },
+        "scenario": "reopened"
+      },
+      {
+        "metrics": {
+          "documents_ms": 38.650400000000005,
+          "embedded_passages": 4,
+          "embedding_calls": 1,
+          "model_ms": 0.00019999999999999998,
+          "persist_ms": 1.9685000000000001,
+          "query_ms": 4.8918,
+          "ranking_ms": 0.3266,
+          "refresh_ms": 7.253299999999999,
+          "total_ms": 53.091899999999995
+        },
+        "scenario": "edited"
+      }
+    ],
+    [
+      {
+        "metrics": {
+          "documents_ms": 2287.6867,
+          "embedded_passages": 240,
+          "embedding_calls": 15,
+          "model_ms": 1234.2721999999999,
+          "persist_ms": 125.29589999999999,
+          "query_ms": 4.9534,
+          "ranking_ms": 0.2878,
+          "refresh_ms": 9.835,
+          "total_ms": 3662.3320000000003
+        },
+        "scenario": "cold"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0024,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 9.999999999999999e-05,
+          "persist_ms": 0.0003,
+          "query_ms": 4.7152,
+          "ranking_ms": 0.2974,
+          "refresh_ms": 6.629099999999999,
+          "total_ms": 11.645100000000001
+        },
+        "query": "진로에 대한 불안",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0028,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "persist_ms": 0.00039999999999999996,
+          "query_ms": 4.5772,
+          "ranking_ms": 0.5197999999999999,
+          "refresh_ms": 7.6816,
+          "total_ms": 12.782399999999999
+        },
+        "query": "파스타",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0022,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 0.00019999999999999998,
+          "persist_ms": 0.0003,
+          "query_ms": 5.0135,
+          "ranking_ms": 0.2837,
+          "refresh_ms": 6.231000000000001,
+          "total_ms": 11.5311
+        },
+        "query": "친구와 즐거운 시간",
+        "scenario": "warm"
+      },
+      {
+        "metrics": {
+          "documents_ms": 0.0044,
+          "embedded_passages": 0,
+          "embedding_calls": 0,
+          "model_ms": 1238.2008,
+          "persist_ms": 0.00039999999999999996,
+          "query_ms": 6.2021999999999995,
+          "ranking_ms": 0.3057,
+          "refresh_ms": 18.1471,
+          "total_ms": 1262.8611
+        },
+        "scenario": "reopened"
+      },
+      {
+        "metrics": {
+          "documents_ms": 41.054300000000005,
+          "embedded_passages": 4,
+          "embedding_calls": 1,
+          "model_ms": 9.999999999999999e-05,
+          "persist_ms": 1.9819,
+          "query_ms": 4.7126,
+          "ranking_ms": 0.2827,
+          "refresh_ms": 7.2658000000000005,
+          "total_ms": 55.298
+        },
+        "scenario": "edited"
+      }
+    ]
+  ],
+  "batch_experiment": [
+    {
+      "batch": 3,
+      "kind": "per-diary",
+      "ms": 2443.1632
+    },
+    {
+      "batch": 32,
+      "kind": "mixed-length",
+      "ms": 2459.1751
+    },
+    {
+      "batch": 8,
+      "kind": "similar-length",
+      "ms": 2289.6722
+    },
+    {
+      "batch": 16,
+      "kind": "similar-length",
+      "ms": 2163.823
+    },
+    {
+      "batch": 32,
+      "kind": "similar-length",
+      "ms": 2670.7459999999996
+    },
+    {
+      "batch": 3,
+      "kind": "per-diary",
+      "ms": 2547.8671
+    },
+    {
+      "batch": 32,
+      "kind": "mixed-length",
+      "ms": 2476.3017
+    },
+    {
+      "batch": 8,
+      "kind": "similar-length",
+      "ms": 2266.3701
+    },
+    {
+      "batch": 16,
+      "kind": "similar-length",
+      "ms": 2159.9351
+    },
+    {
+      "batch": 32,
+      "kind": "similar-length",
+      "ms": 2512.1884
+    },
+    {
+      "batch": 3,
+      "kind": "per-diary",
+      "ms": 2521.3379
+    },
+    {
+      "batch": 32,
+      "kind": "mixed-length",
+      "ms": 2456.1064
+    },
+    {
+      "batch": 8,
+      "kind": "similar-length",
+      "ms": 2252.7472
+    },
+    {
+      "batch": 16,
+      "kind": "similar-length",
+      "ms": 2124.4373
+    },
+    {
+      "batch": 32,
+      "kind": "similar-length",
+      "ms": 2464.3228000000004
+    }
+  ]
+}

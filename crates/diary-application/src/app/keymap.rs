@@ -48,6 +48,17 @@ pub fn handle_key(key: KeyEvent, model: &Model) -> Option<Msg> {
             | _ => None,
         };
     }
+    if model.screen == Screen::Search {
+        return crate::search::handle_key(key, model);
+    }
+    if model.screen == Screen::Calendar
+        && key.code == KeyCode::Char('/')
+        && key.modifiers == KeyModifiers::NONE
+        && model.editor_state.submode.is_none()
+        && model.editor_state.helix.prefix.is_none()
+    {
+        return Some(Msg::OpenSearch);
+    }
     if model.settings.keybindings == crate::settings::Keybindings::Helix {
         return Some(Msg::HelixKey(key));
     }
@@ -66,5 +77,6 @@ pub fn handle_key(key: KeyEvent, model: &Model) -> Option<Msg> {
     match model.screen {
         | Screen::Calendar => calendar::keymap::handle_key(key),
         | Screen::Editor => editor::keymap::handle_key(key, &model.editor_state),
+        | Screen::Search => unreachable!(),
     }
 }

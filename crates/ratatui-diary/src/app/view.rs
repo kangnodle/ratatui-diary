@@ -21,6 +21,7 @@ pub fn view(f: &mut Frame, model: &Model) {
     match model.screen {
         | Screen::Calendar => calendar::view::render(f, model),
         | Screen::Editor => editor::view::render(f, model),
+        | Screen::Search => crate::search::render(f, model),
     }
 
     if model.show_settings {

@@ -91,6 +91,36 @@ fn symlink(target: &Path, link: &Path) -> bool {
 
 #[test]
 #[cfg(any(unix, windows))]
+fn search_cache_rejects_linked_files_and_directories_without_touching_targets() {
+    let directory = TempDir::new().unwrap();
+    let storage = Storage::with_dir(directory.path()).unwrap();
+    let date = NaiveDate::from_ymd_opt(2026, 10, 19).unwrap();
+    let outside = directory.path().join("outside.json");
+    fs::write(&outside, "private content").unwrap();
+    storage.save_search_cache(date, "cache").unwrap();
+    let cache_directory = directory.path().join("entries/.search-cache");
+    let path = cache_directory.join(format!("{date}.json"));
+    fs::remove_file(&path).unwrap();
+    if !symlink(&outside, &path) {
+        return;
+    }
+    assert!(storage.load_search_cache(date).is_err());
+    assert!(storage.save_search_cache(date, "replacement").is_err());
+    assert!(storage.prune_search_cache(&Default::default()).is_err());
+    assert_eq!(fs::read_to_string(&outside).unwrap(), "private content");
+    fs::remove_file(path).unwrap();
+    fs::remove_dir(&cache_directory).unwrap();
+    let outside_directory = directory.path().join("outside");
+    fs::create_dir(&outside_directory).unwrap();
+    assert!(symlink(&outside_directory, &cache_directory));
+    assert!(storage.load_search_cache(date).is_err());
+    assert!(storage.save_search_cache(date, "replacement").is_err());
+    assert!(storage.prune_search_cache(&Default::default()).is_err());
+    assert_eq!(fs::read_dir(outside_directory).unwrap().count(), 0);
+}
+
+#[test]
+#[cfg(any(unix, windows))]
 fn linked_and_dangling_diaries_are_rejected_without_falling_back_to_markdown() {
     let directory = TempDir::new().unwrap();
     let storage = Storage::with_dir(directory.path()).unwrap();

@@ -109,7 +109,7 @@ fn every_language_and_theme_renders_screens_and_overlays() {
             for screen in [Screen::Calendar, Screen::Editor] {
                 model.screen = screen;
                 let (text, buffer) = rendered(&model, 160, 30);
-                assert!(text.contains("F2:"));
+                assert!(text.contains("F2 "));
                 assert!(text.contains(language.text("설정", "Settings")));
                 assert_eq!(buffer[(159, 29)].bg, ratatui_diary::theme::palette(theme).bg);
                 if screen == Screen::Calendar {

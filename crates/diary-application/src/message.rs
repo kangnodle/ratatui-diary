@@ -13,6 +13,14 @@ pub enum Msg {
     SettingsSaveFailed(String),
     DismissError,
     HelixKey(crate::input::KeyEvent),
+    OpenSearch,
+    SearchChar(char),
+    SearchBackspace,
+    SearchSubmit,
+    SearchMove(bool),
+    SearchEdit,
+    SearchClose,
+    SearchFinished(u64, Result<crate::search::SearchOutput, String>),
 
     // 에디터 - 네비게이션
     EditorMoveLeft,

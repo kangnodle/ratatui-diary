@@ -2,6 +2,7 @@ use chrono::NaiveDate;
 use diary_domain::{DiaryEntry,
                    EntryFormat};
 mod file_io;
+mod search_cache;
 pub mod settings;
 use std::{collections::HashSet,
           ffi::OsString,
@@ -10,6 +11,7 @@ use std::{collections::HashSet,
           path::{Path,
                  PathBuf}};
 
+#[derive(Clone)]
 pub struct Storage {
     entries_dir: PathBuf,
 }

@@ -5,6 +5,7 @@ pub mod calendar;
 pub mod editor;
 pub mod input;
 pub mod message;
+pub mod search;
 
 pub use app::{Command,
               Model,

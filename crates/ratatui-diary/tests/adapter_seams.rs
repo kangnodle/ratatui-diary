@@ -30,8 +30,9 @@ fn calendar_header_selection_and_navigation_help_follow_the_cursor() {
         let text: String = buffer.content.iter().map(|cell| cell.symbol()).collect();
         assert!(text.contains("2026-01"));
         assert!(text.contains("Diary: 2026-01-01"));
-        assert!(text.contains("PgUp/Dn:Previous/Next month"));
-        assert!(text.contains("C-PgUp/Dn:Previous/Next year"));
+        let rows: Vec<String> = (0 .. 24).map(|y| (0 .. 50).map(|x| buffer[(x, y)].symbol()).collect()).collect();
+        assert!(rows.iter().any(|row| row.contains("PgUp/Dn") && row.contains("Previous/Next month")));
+        assert!(rows.iter().any(|row| row.contains("C-PgUp/Dn") && row.contains("Previous/Next year")));
         let palette = ratatui_diary::theme::palette(model.settings.theme);
         assert!(
             buffer
@@ -99,7 +100,8 @@ fn many_diary_lines_do_not_wrap_vertical_cursor_coordinates() {
     let mut terminal = Terminal::new(TestBackend::new(80, 24)).unwrap();
     terminal.draw(|frame| app::view(frame, &model)).unwrap();
     let buffer = terminal.backend().buffer();
-    let text: String = (0 .. 40).map(|x| buffer[(x, 20)].symbol()).collect();
+    let last_row = ratatui_diary::editor::view::viewport_height(&model, buffer.area) as u16;
+    let text: String = (0 .. 40).map(|x| buffer[(x, last_row)].symbol()).collect();
     assert!(text.contains("END"));
 }
 

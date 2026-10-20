@@ -27,6 +27,7 @@ pub struct Model {
     pub show_error_popup: bool,
     pub today: NaiveDate,
     pub preview: Option<(NaiveDate, DiaryEntry)>,
+    pub search: crate::search::SearchState,
     pub(crate) pending_navigation: Option<Navigation>,
 }
 
@@ -34,6 +35,7 @@ pub struct Model {
 pub enum Screen {
     Calendar,
     Editor,
+    Search,
 }
 
 pub struct DiaryIndex {
@@ -60,6 +62,7 @@ impl Model {
             show_error_popup: false,
             today,
             preview: None,
+            search: Default::default(),
             pending_navigation: None,
         }
     }

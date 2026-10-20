@@ -9,6 +9,26 @@ use diary_runtime::Runtime;
 use diary_storage::Storage;
 use tempfile::TempDir;
 
+#[test]
+fn background_search_completes_through_poll_without_blocking_execute() {
+    let directory = TempDir::new().unwrap();
+    let storage = Storage::with_dir(directory.path()).unwrap();
+    let mut runtime = Runtime::new(storage, None);
+    let mut model = Model::new(chrono::NaiveDate::default(), Default::default());
+    update(&mut model, Msg::OpenSearch);
+    update(&mut model, Msg::SearchChar('가'));
+    let command = update(&mut model, Msg::SearchSubmit).unwrap();
+    runtime.execute(command, &mut model);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+    while model.search.busy && std::time::Instant::now() < deadline {
+        runtime.poll(&mut model);
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(!model.search.busy);
+    assert!(model.search.notice.is_none());
+    assert!(model.search.results.is_empty());
+}
+
 fn fixture() -> (TempDir, Runtime, Model) {
     let directory = TempDir::new().unwrap();
     let storage = Storage::with_dir(directory.path()).unwrap();

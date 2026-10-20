@@ -3,6 +3,8 @@ pub mod app;
 pub mod calendar;
 pub mod editor;
 pub mod input;
+mod key_help;
+mod search;
 pub mod settings;
 pub mod theme;
 

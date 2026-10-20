@@ -32,13 +32,40 @@ pub fn render(f: &mut Frame, model: &Model) {
         ])
         .split(f.area());
 
+    // 상태바 - 동적 키바인딩
+    let keybindings = if model.settings.keybindings == crate::settings::Keybindings::Helix {
+        if model.editor_state.helix.prefix == Some(crate::editor::helix::Prefix::Command) {
+            crate::editor::helix::help(&model.editor_state, lang).to_string()
+        } else {
+            lang.text(
+                "h/j/k/l:이동 | Enter:편집\nH/L · PgUp/Dn:이전/다음 월\n{/} · C-PgUp/Dn:이전/다음 년\n:q:종료 | F2:설정",
+                "h/j/k/l:Move | Enter:Edit\nH/L · PgUp/Dn:Previous/Next month\n{/} · C-PgUp/Dn:Previous/Next year\n:q:Quit | F2:Settings",
+            )
+            .to_string()
+        }
+    } else if model.editor_state.submode == Some(crate::editor::state::EditorSubMode::CtrlX) {
+        lang.text("C-x C-c:저장 후 종료 | C-g:취소", "C-x C-c:Save & quit | C-g:Cancel").to_string()
+    } else {
+        format!("F2:{}\n{}", lang.tr(crate::i18n::Text::Settings), lang.tr(crate::i18n::Text::CalendarKeys))
+    };
+    let keybindings = format!("{keybindings}\n/ :{}", lang.text("전체 일기 검색", "Search all diaries"));
+    let mut footer = crate::key_help::build(&keybindings, main_chunks[0].width, palette);
+    let status = if model.settings.keybindings == crate::settings::Keybindings::Helix
+        && model.editor_state.helix.prefix == Some(crate::editor::helix::Prefix::Command)
+    {
+        crate::editor::helix::status(&model.editor_state)
+    } else {
+        format!("{} / {}", lang.tr(crate::i18n::Text::LanguageName), model.settings.theme.label(lang))
+    };
+    footer.lines.insert(0, Line::from(status));
+
     // 왼쪽: 달력 영역 (기존 레이아웃)
     let calendar_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // 헤더
-            Constraint::Min(0),    // 달력
-            Constraint::Length(5), // 상태바
+            Constraint::Length(3),                                                                     // 헤더
+            Constraint::Min(0),                                                                        // 달력
+            Constraint::Length((footer.height() as u16).min(main_chunks[0].height.saturating_sub(4))), // 상태바
         ])
         .split(main_chunks[0]);
 
@@ -54,34 +81,7 @@ pub fn render(f: &mut Frame, model: &Model) {
     // 달력 그리드
     render_calendar_grid(f, calendar_chunks[1], model);
 
-    // 상태바 - 동적 키바인딩
-    let keybindings = if model.settings.keybindings == crate::settings::Keybindings::Helix {
-        if model.editor_state.helix.prefix == Some(crate::editor::helix::Prefix::Command) {
-            format!(
-                "{}\n{}",
-                crate::editor::helix::status(&model.editor_state),
-                crate::editor::helix::help(&model.editor_state, lang)
-            )
-        } else {
-            lang.text(
-                "h/j/k/l:이동 | Enter:편집\nH/L · PgUp/Dn:이전/다음 월\n{/} · C-PgUp/Dn:이전/다음 년\n:q:종료 | F2:설정",
-                "h/j/k/l:Move | Enter:Edit\nH/L · PgUp/Dn:Previous/Next month\n{/} · C-PgUp/Dn:Previous/Next year\n:q:Quit | F2:Settings",
-            )
-            .to_string()
-        }
-    } else if model.editor_state.submode == Some(crate::editor::state::EditorSubMode::CtrlX) {
-        lang.text("C-x C-c:저장 후 종료 | C-g:취소", "C-x C-c:Save & quit | C-g:Cancel").to_string()
-    } else {
-        format!(
-            "F2:{} · {} / {}\n{}",
-            lang.tr(crate::i18n::Text::Settings),
-            lang.tr(crate::i18n::Text::LanguageName),
-            model.settings.theme.label(lang),
-            lang.tr(crate::i18n::Text::CalendarKeys)
-        )
-    };
-    let statusbar = Paragraph::new(keybindings).alignment(Alignment::Center);
-    f.render_widget(statusbar, calendar_chunks[2]);
+    f.render_widget(Paragraph::new(footer), calendar_chunks[2]);
 
     // 오른쪽: 미리보기 영역
     let selected_date = model.calendar_state.selected_date;
