@@ -29,11 +29,11 @@ fn background_search_completes_through_poll_without_blocking_execute() {
     };
     runtime.execute(command, &mut model);
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
-    while model.search.busy && std::time::Instant::now() < deadline {
+    while model.search.is_busy() && std::time::Instant::now() < deadline {
         runtime.poll(&mut model);
         std::thread::sleep(std::time::Duration::from_millis(5));
     }
-    assert!(!model.search.busy);
+    assert!(!model.search.is_busy());
     assert!(model.search.notice.is_none());
     assert!(model.search.results.is_empty());
 }
@@ -111,11 +111,7 @@ fn failed_save_keeps_the_editor_open_and_retry_can_exit() {
         | Ok(_) => (),
         | Err(error) => panic!("Could not create the directory: {error:?}"),
     };
-    let command = match update(&mut model, Msg::Quit) {
-        | Some(value) => value,
-        | None => panic!("Expected the application update to produce a command"),
-    };
-    runtime.execute(command, &mut model);
+    model = runtime.advance(model, Msg::Quit);
     assert!(!model.should_quit);
     assert!(model.show_error_popup);
     assert!(model.editor_state.is_modified);
@@ -124,12 +120,8 @@ fn failed_save_keeps_the_editor_open_and_retry_can_exit() {
         | Ok(_) => (),
         | Err(error) => panic!("Could not remove the directory: {error:?}"),
     };
-    update(&mut model, Msg::DismissError);
-    let command = match update(&mut model, Msg::Quit) {
-        | Some(value) => value,
-        | None => panic!("Expected the application update to produce a command"),
-    };
-    runtime.execute(command, &mut model);
+    let model = runtime.advance(model, Msg::DismissError);
+    let model = runtime.advance(model, Msg::Quit);
     assert!(model.should_quit);
     assert_eq!(
         match std::fs::read_to_string(path) {

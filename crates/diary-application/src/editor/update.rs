@@ -227,10 +227,8 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
 
         | Msg::EditorCtrlXSave =>
             if model.editor_state.submode == Some(EditorSubMode::CtrlX) {
-                let date = model.editor_state.date;
-                let content = model.editor_state.get_content();
                 model.editor_state.submode = None;
-                return Some(Command::SaveDiary(date, content));
+                return Some(crate::app::entry::save(&model.editor_state));
             },
 
         | _ => {},

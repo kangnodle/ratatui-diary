@@ -1,4 +1,6 @@
 use chrono::NaiveDate;
+use diary_domain::{DiaryEntry,
+                   settings::Keybindings};
 use std::ops::{Deref,
                DerefMut};
 pub use text_editor::Selection;
@@ -34,6 +36,21 @@ impl EditorState {
             search_origin: None,
             search_backward: false,
             last_search_pattern: String::new(),
+        }
+    }
+
+    pub(crate) fn load_entry(&mut self, date: NaiveDate, entry: DiaryEntry, position: Option<(usize, usize)>, keybindings: Keybindings) {
+        self.date = date;
+        self.format = entry.format;
+        self.load_content(&entry.content);
+        if let Some((line, col)) = position {
+            self.cursor_line = line.min(self.content.len().saturating_sub(1));
+            self.cursor_col = col.min(self.content[self.cursor_line].chars().count());
+        }
+        self.submode = None;
+        self.search_origin = None;
+        if keybindings == Keybindings::Helix {
+            super::helix::reset(self, true);
         }
     }
 

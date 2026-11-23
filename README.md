@@ -114,12 +114,33 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --locked
 ```
 
-[워크스페이스](Cargo.toml)는 달력·설정 규칙(`diary-domain`), 편집 엔진(`text-editor`), 상태 전이와 키맵(`diary-application`), 파일 I/O(`diary-storage`), 검색과 명령 실행(`diary-runtime`), 미리보기(`org-render`, `markdown-render`), 터미널 UI(`ratatui-diary`)로 구성됩니다.
+### Workspace 구조
+
+| 크레이트 | 책임 |
+| --- | --- |
+| `diary-domain` | 달력의 날짜 규칙, 일기와 설정 값, 검색 결과의 본문 위치 확인 |
+| `text-editor` | 편집 버퍼, 커서, 선택, 실행 취소 |
+| `diary-application` | 일기 열기·저장 후 이동, 설정 변경, 검색 세션의 상태 전이와 키맵 |
+| `diary-storage` | 일기, 설정, 임베딩 캐시의 파일 읽기·쓰기 |
+| `diary-search` | 검색 워커, 모델 로드, 색인 및 순위 계산 |
+| `diary-runtime` | 파일과 검색 어댑터 조합, 명령 실행 및 결과 전달 |
+| `ratatui-diary`, `org-render`, `markdown-render` | 터미널 입력·출력과 미리보기 |
+
+애플리케이션은 도메인과 편집 엔진을 사용합니다. 런타임이 파일·검색 어댑터를 조합하고, 터미널은 키 입력, 현재 날짜, 화면 크기를 애플리케이션의 입력 값으로 전달합니다.
+
+```text
+Model + Msg → transition → Model + Option<Command>
+Command     → Runtime::perform → Option<Msg>
+```
+
+`transition`은 모델의 소유권을 받아 다음 모델을 반환합니다. 내부에서 기존 버퍼를 재사용하므로 전이마다 일기 전체를 복제할 필요가 없습니다. `Command`는 효과 실행에 필요한 값을 소유하며, 런타임은 실행 결과를 다시 `Msg`로 전달합니다. 파일 작업의 결과는 다음 입력을 받기 전에 모두 적용합니다. 검색은 워커에서 비동기로 실행하며 현재 요청 번호와 일치하는 응답만 적용합니다.
+
+DCI에서 **Data**는 일기, 편집 버퍼, 달력 선택, 설정, 검색 결과입니다. **Context**는 일기 작업, 설정 변경, 검색 세션입니다. **Interaction**은 각 컨텍스트에서 데이터가 맡은 역할 사이의 협력입니다. 예를 들어 일기 열기에서 달력은 날짜를 선택하고, 검색 결과는 구절의 위치를 찾으며, 편집기는 읽어 온 일기와 커서 위치를 적용합니다. 저장 후 돌아가기에서는 저장 성공 시 일기 색인을 갱신하고 달력 미리보기를 요청합니다. 작업 상태는 Rust의 `enum`으로 표현해 대기 중인 날짜나 검색 요청 번호를 해당 상태와 함께 보관합니다.
 
 기본 테스트는 검색 모델을 다운로드하지 않습니다. 실제 모델을 쓰는 한국어 의미 검색 테스트와 편집 경로 벤치마크는 따로 실행할 수 있습니다.
 
 ```sh
-cargo test --locked -p diary-runtime real_korean_semantic_search -- --ignored
+cargo test --locked -p diary-search real_korean_semantic_search -- --ignored
 cargo bench --locked -p ratatui-diary --bench hotpaths
 ```
 

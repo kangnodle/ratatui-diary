@@ -111,3 +111,33 @@ fn helix_write_quit_requests_a_save_even_when_the_document_is_clean() {
     update(&mut model, Msg::SaveDiarySuccess(date()));
     assert!(model.should_quit);
 }
+
+#[test]
+fn settings_transition_emits_the_value_to_persist() {
+    use diary_application::{settings::Language,
+                            transition};
+
+    let step = transition(model(), Msg::SettingsChange(true));
+    assert_eq!(step.model.settings.language, Language::English);
+    assert!(matches!(step.command, Some(Command::SaveSettings(settings)) if settings == step.model.settings));
+}
+
+#[test]
+fn opening_an_entry_ignores_a_load_for_another_date() {
+    use diary_application::transition;
+
+    let mut model = model();
+    model.editor_state.load_content("previous");
+    let selected = date().succ_opt().expect("valid next day");
+    model.calendar_state.selected_date = selected;
+    let step = transition(model, Msg::CalendarSelectDate);
+    assert!(matches!(step.command, Some(Command::LoadDiary(day)) if day == selected));
+
+    let step = transition(step.model, Msg::LoadDiarySuccess(date(), "stale".into(), EntryFormat::Org));
+    assert_eq!(step.model.editor_state.get_content(), "previous");
+
+    let step = transition(step.model, Msg::LoadDiarySuccess(selected, "current".into(), EntryFormat::Markdown));
+    assert_eq!(step.model.editor_state.date, selected);
+    assert_eq!(step.model.editor_state.get_content(), "current");
+    assert_eq!(step.model.editor_state.format, EntryFormat::Markdown);
+}

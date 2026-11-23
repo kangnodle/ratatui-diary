@@ -1,72 +1,25 @@
-use diary_application::{Msg,
-                        search::{SearchHit,
-                                 SearchOutput}};
+use diary_domain::search::SearchOutput;
 use diary_storage::Storage;
 use fastembed::{EmbeddingModel,
                 TextEmbedding,
                 TextInitOptions};
-use regex::{Regex,
-            RegexBuilder};
+use regex::RegexBuilder;
 use serde::{Deserialize,
             Serialize};
 use sha2::{Digest,
            Sha256};
-use std::{collections::{BTreeMap,
-                        BTreeSet},
-          sync::mpsc::{self,
-                       Receiver,
-                       Sender},
-          thread};
+use std::collections::{BTreeMap,
+                       BTreeSet};
 
-pub(crate) struct Worker {
-    requests: Sender<(u64, String)>,
-    pub responses: Receiver<Msg>,
-    #[cfg(test)]
-    pub ready: Receiver<Result<(), String>>,
-}
+mod ranking;
+mod worker;
 
-impl Worker {
-    pub fn start(storage: Storage) -> std::io::Result<Self> { Self::spawn(storage, None::<fn() -> Result<TextEmbedding, String>>) }
-
-    pub fn preload(storage: Storage) -> std::io::Result<Self> { Self::spawn(storage, Some(load_model)) }
-
-    pub(super) fn spawn(storage: Storage, loader: Option<impl FnOnce() -> Result<TextEmbedding, String> + Send + 'static>) -> std::io::Result<Self> {
-        let (requests, incoming) = mpsc::channel::<(u64, String)>();
-        let (outgoing, responses) = mpsc::channel();
-        #[cfg(test)]
-        let (readied, ready) = mpsc::channel();
-        thread::Builder::new().name("diary-search".into()).spawn(move || {
-            let mut index = Index::default();
-            if let Some(loader) = loader {
-                let model = loader();
-                #[cfg(test)]
-                let _ = readied.send(model.as_ref().map(|_| ()).map_err(Clone::clone));
-                index.model = model.ok();
-            }
-            while let Ok(mut request) = incoming.recv() {
-                while let Ok(newer) = incoming.try_recv() {
-                    request = newer;
-                }
-                let result = index.search(&storage, &request.1);
-                if outgoing.send(Msg::SearchFinished(request.0, result)).is_err() {
-                    break;
-                }
-            }
-        })?;
-        Ok(Self {
-            requests,
-            responses,
-            #[cfg(test)]
-            ready,
-        })
-    }
-
-    pub fn submit(&self, id: u64, query: String) -> Result<(), String> {
-        self.requests
-            .send((id, query))
-            .map_err(|_| "검색 작업이 종료되었습니다 / Search worker stopped".into())
-    }
-}
+use ranking::{Document,
+              Passage,
+              passages,
+              rank};
+pub use worker::{Response,
+                 Worker};
 
 fn load_model() -> Result<TextEmbedding, String> {
     let cache = dirs::cache_dir().ok_or("Cannot find local model cache directory")?.join("ratatui-diary/models");
@@ -75,18 +28,6 @@ fn load_model() -> Result<TextEmbedding, String> {
         .with_show_download_progress(false)
         .with_intra_threads(2);
     TextEmbedding::try_new(options).map_err(|e| e.to_string())
-}
-
-struct Passage {
-    line: usize,
-    col: usize,
-    text: String,
-    vector: Vec<f32>,
-}
-
-struct Document {
-    content: String,
-    passages: Vec<Passage>,
 }
 
 const CACHE_VERSION: &str = "fastembed-7.1.1/multilingual-e5-small/mean/max512/chars240/v1";
@@ -283,159 +224,13 @@ impl Index {
 #[path = "search_benchmark.rs"]
 mod benchmark;
 
-fn passages(content: &str) -> Vec<Passage> {
-    let mut result = Vec::new();
-    let mut text = String::new();
-    let (mut start_line, mut start_col, mut count) = (0, 0, 0);
-    for (line, source) in content.split('\n').enumerate() {
-        let source = source.strip_suffix('\r').unwrap_or(source);
-        if source.trim().is_empty() {
-            if !text.is_empty() {
-                result.push(Passage {
-                    line: start_line,
-                    col: start_col,
-                    text: std::mem::take(&mut text),
-                    vector: Vec::new(),
-                });
-                count = 0;
-            }
-            continue;
-        }
-        for (col, ch) in source.chars().enumerate() {
-            if count >= 240 {
-                result.push(Passage {
-                    line: start_line,
-                    col: start_col,
-                    text: std::mem::take(&mut text),
-                    vector: Vec::new(),
-                });
-                count = 0;
-            }
-            if text.is_empty() {
-                (start_line, start_col) = (line, col);
-            }
-            text.push(ch);
-            count += 1;
-        }
-        text.push('\n');
-        count += 1;
-    }
-    if !text.is_empty() {
-        result.push(Passage {
-            line: start_line,
-            col: start_col,
-            text,
-            vector: Vec::new(),
-        });
-    }
-    result
-}
-
-fn position(content: &str, byte: usize) -> (usize, usize) {
-    let prefix = &content[.. byte];
-    (
-        prefix.bytes().filter(|&b| b == b'\n').count(),
-        prefix.rsplit('\n').next().unwrap_or("").chars().count(),
-    )
-}
-
-fn cosine(a: &[f32], b: &[f32]) -> f32 {
-    if a.len() != b.len() || a.is_empty() {
-        return 0.0;
-    }
-    let dot: f32 = a.iter().zip(b).map(|(a, b)| a * b).sum();
-    let norm = (a.iter().map(|v| v * v).sum::<f32>() * b.iter().map(|v| v * v).sum::<f32>()).sqrt();
-    if norm > 0.0 { dot / norm } else { 0.0 }
-}
-
-fn contains(passage: &Passage, line: usize, col: usize) -> bool {
-    let newlines = passage.text.bytes().filter(|&b| b == b'\n').count();
-    let end_col = if newlines == 0 {
-        passage.col + passage.text.chars().count()
-    } else {
-        passage.text.rsplit('\n').next().unwrap_or("").chars().count()
-    };
-    (passage.line, passage.col) <= (line, col) && (line, col) < (passage.line + newlines, end_col)
-}
-
-fn rank(documents: &BTreeMap<chrono::NaiveDate, Document>, pattern: &Regex, query: Option<&[f32]>) -> Vec<SearchHit> {
-    let mut ranked = Vec::new();
-    for (&date, document) in documents {
-        let matches: Vec<_> = pattern.find_iter(&document.content).take(100).collect();
-        let literal_positions: Vec<_> = matches.iter().map(|m| position(&document.content, m.start())).collect();
-        for (m, &(line, col)) in matches.iter().zip(&literal_positions) {
-            let before: String = document.content[.. m.start()]
-                .chars()
-                .rev()
-                .take(100)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect();
-            let after: String = document.content[m.start() ..].chars().take(400).collect();
-            let excerpt = format!("{before}{after}");
-            let similarity = query.map_or(0.0, |q| {
-                document.passages.iter().find(|p| contains(p, line, col)).map_or(0.0, |p| cosine(q, &p.vector))
-            });
-            ranked.push((
-                2.0 + similarity,
-                SearchHit {
-                    date,
-                    line,
-                    col,
-                    excerpt,
-                    literal: true,
-                    anchor: m.as_str().to_string(),
-                },
-            ));
-        }
-        if let Some(query) = query {
-            for passage in &document.passages {
-                if literal_positions.iter().any(|&(line, col)| contains(passage, line, col)) {
-                    continue;
-                }
-                let score = cosine(query, &passage.vector);
-                if score.is_finite() && score > 0.0 {
-                    let anchor = passage.text.trim_end_matches('\n').to_string();
-                    ranked.push((
-                        score,
-                        SearchHit {
-                            date,
-                            line: passage.line,
-                            col: passage.col,
-                            excerpt: passage.text.clone(),
-                            literal: false,
-                            anchor,
-                        },
-                    ));
-                }
-            }
-        }
-    }
-    ranked.sort_by(|(a, ah), (b, bh)| {
-        b.total_cmp(a)
-            .then_with(|| bh.date.cmp(&ah.date))
-            .then_with(|| (ah.line, ah.col).cmp(&(bh.line, bh.col)))
-    });
-    let mut semantic = 0;
-    ranked
-        .into_iter()
-        .map(|(_, hit)| hit)
-        .filter(|hit| {
-            if hit.literal {
-                true
-            } else {
-                semantic += 1;
-                semantic <= 20
-            }
-        })
-        .take(100)
-        .collect()
-}
+#[cfg(test)]
+use diary_domain::search::SearchHit;
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ranking::cosine;
     use tempfile::TempDir;
 
     #[test]

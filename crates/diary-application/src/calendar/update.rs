@@ -1,6 +1,6 @@
 use crate::{app::{Command,
                   Model,
-                  Screen},
+                  entry},
             message::Msg};
 
 pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
@@ -11,8 +11,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         | Msg::CalendarMoveDown => model.calendar_state.move_cursor_down(),
         | Msg::CalendarSelectDate => {
             let date = model.calendar_state.selected_date;
-            model.screen = Screen::Editor;
-            return Some(Command::LoadDiary(date));
+            return Some(entry::open(model, date, None));
         },
         | Msg::CalendarNextMonth => model.calendar_state.next_month(),
         | Msg::CalendarPrevMonth => model.calendar_state.prev_month(),

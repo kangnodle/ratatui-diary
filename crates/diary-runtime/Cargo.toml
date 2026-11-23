@@ -7,12 +7,7 @@
   chrono = { workspace = true, features = ["clock"] }
   diary-application = { workspace = true }
   diary-storage = { workspace = true }
-  dirs = { workspace = true }
-  regex = { workspace = true }
-  serde = { version = "1", features = ["derive"] }
-  serde_json = "1"
-  sha2 = "0.10.9"
-  fastembed = { version = "=7.1.1", default-features = false, features = ["ort-download-binaries-rustls-tls", "hf-hub-rustls-tls"] }
+  diary-search = { workspace = true }
 
 [dev-dependencies]
   tempfile = { workspace = true }

@@ -40,12 +40,11 @@ impl CalendarState {
 
     pub fn move_cursor_down(&mut self) { self.select_date(self.selected_date.checked_add_days(Days::new(7))); }
 
-    fn select_date(&mut self, date: Option<NaiveDate>) {
-        self.selected_date = match date {
-            | Some(date) => date,
-            | None => self.selected_date,
-        };
-        self.current_year = self.selected_date.year();
-        self.current_month = self.selected_date.month();
+    fn select_date(&mut self, date: Option<NaiveDate>) { self.focus(date.unwrap_or(self.selected_date)); }
+
+    pub fn focus(&mut self, date: NaiveDate) {
+        self.selected_date = date;
+        self.current_year = date.year();
+        self.current_month = date.month();
     }
 }

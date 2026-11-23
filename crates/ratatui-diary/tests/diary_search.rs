@@ -67,10 +67,10 @@ fn both_keymaps_open_results_at_the_korean_source_position_and_save_normally() {
             | None => panic!("Expected the key press to produce a command"),
         };
         assert!(matches!(command, Command::Search(_, _)));
-        assert!(model.search.busy);
+        assert!(model.search.is_busy());
         let mut result = hit(date);
         result.line = 2;
-        let revision = model.search.revision;
+        let revision = model.search.pending_revision().expect("expected a pending search");
         app::update(
             &mut model,
             Msg::SearchFinished(
@@ -124,13 +124,13 @@ fn edits_and_closing_discard_stale_replies_and_search_does_not_intercept_editor_
     press(&mut model, KeyCode::Char('/'), KeyModifiers::NONE);
     press(&mut model, KeyCode::Char('가'), KeyModifiers::NONE);
     press(&mut model, KeyCode::Enter, KeyModifiers::NONE);
-    let revision = model.search.revision;
+    let revision = model.search.pending_revision().expect("expected a pending search");
     press(&mut model, KeyCode::Char('나'), KeyModifiers::NONE);
     app::update(&mut model, Msg::SearchFinished(revision, Err("stale".into())));
     assert!(model.search.notice.is_none());
-    assert!(!model.search.busy);
+    assert!(!model.search.is_busy());
     press(&mut model, KeyCode::Enter, KeyModifiers::NONE);
-    let revision = model.search.revision;
+    let revision = model.search.pending_revision().expect("expected a pending search");
     press(&mut model, KeyCode::Esc, KeyModifiers::NONE);
     let date = model.today;
     app::update(
@@ -199,7 +199,13 @@ fn search_renders_results_loading_errors_and_small_terminals_in_both_languages()
                     | Err(never) => match never {},
                 };
                 for phase in 0 .. 3 {
-                    model.search.busy = phase == 0;
+                    if phase == 0 {
+                        app::update(&mut model, Msg::SearchSubmit);
+                    }
+                    if phase == 1 {
+                        let revision = model.search.pending_revision().expect("expected a pending search");
+                        app::update(&mut model, Msg::SearchFinished(revision, Ok(SearchOutput::default())));
+                    }
                     if phase == 1 {
                         model.search.results = vec![hit(model.today)];
                     }

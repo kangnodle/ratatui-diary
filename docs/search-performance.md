@@ -83,12 +83,12 @@ Unix에서는 기존과 동일하게 비공개 디렉터리·파일 권한을 �
 
 ```powershell
 $env:DIARY_SEARCH_BENCH_PHASE = 'before'
-cargo test --release -p diary-runtime search_release_benchmark -- --ignored --nocapture
+cargo test --release -p diary-search search_release_benchmark -- --ignored --nocapture
 $env:DIARY_SEARCH_BENCH_PHASE = 'after'
-cargo test --release -p diary-runtime search_release_benchmark -- --ignored --nocapture
+cargo test --release -p diary-search search_release_benchmark -- --ignored --nocapture
 Remove-Item Env:DIARY_SEARCH_BENCH_PHASE
 
-cargo test --release -p diary-runtime search_batch_sizes -- --ignored --nocapture
+cargo test --release -p diary-search search_batch_sizes -- --ignored --nocapture
 ```
 
 모델이 캐시되어 있다면 `HF_ENDPOINT=http://127.0.0.1:9`로 설정해 네트워크 없이 실행할 수 있다.
@@ -163,7 +163,7 @@ TUI 검증은 실제 모델을 로딩하면서 `run_app`과 100×28 `TestBackend
 
 ```powershell
 $env:HF_ENDPOINT = 'http://127.0.0.1:9' # 모델 파일이 이미 캐시된 경우만
-cargo test --release -p diary-runtime search_preload_benchmark -- --ignored --nocapture
+cargo test --release -p diary-search search_preload_benchmark -- --ignored --nocapture
 cargo test --release -p ratatui-diary --bin ratatui-diary preload_tui_benchmark -- --ignored --nocapture
 Remove-Item Env:HF_ENDPOINT
 ```

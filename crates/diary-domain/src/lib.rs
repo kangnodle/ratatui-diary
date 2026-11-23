@@ -1,5 +1,6 @@
 pub mod calendar;
 pub mod i18n;
+pub mod search;
 pub mod settings;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

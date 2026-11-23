@@ -633,6 +633,18 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "diary-application",
+ "diary-search",
+ "diary-storage",
+ "tempfile",
+]
+
+[[package]]
+name = "diary-search"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "diary-application",
+ "diary-domain",
  "diary-storage",
  "dirs 7.0.0",
  "fastembed",

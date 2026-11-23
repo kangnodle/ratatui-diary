@@ -9,13 +9,14 @@ use crossterm::{event::{self,
 use ratatui::{Terminal,
               backend::CrosstermBackend};
 use ratatui_diary::{Model,
+                    Msg,
                     Runtime,
                     app};
 use std::{io,
           time::Duration};
 
 fn main() -> std::io::Result<()> {
-    let (mut runtime, mut model) = ratatui_diary::Runtime::start()?;
+    let (mut runtime, model) = Runtime::start()?;
 
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -25,13 +26,13 @@ fn main() -> std::io::Result<()> {
     terminal.clear()?;
 
     let result = run_app(
-        &mut model,
+        model,
         &mut runtime,
         |model| {
-            model.editor_state.viewport_height =
+            let height =
                 ratatui_diary::editor::view::viewport_height(model, ratatui::layout::Rect::from((ratatui::layout::Position::ORIGIN, terminal.size()?)));
             terminal.draw(|frame| app::view(frame, model))?;
-            Ok(())
+            Ok(Some(height))
         },
         |timeout| {
             if event::poll(timeout)? { event::read().map(Some) } else { Ok(None) }
@@ -44,47 +45,50 @@ fn main() -> std::io::Result<()> {
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
 
-    result
+    result.map(|_| ())
 }
 
 fn run_app(
-    model: &mut Model,
+    mut model: Model,
     runtime: &mut Runtime,
-    mut draw: impl FnMut(&mut Model) -> io::Result<()>,
+    mut draw: impl FnMut(&Model) -> io::Result<Option<usize>>,
     mut next_event: impl FnMut(Duration) -> io::Result<Option<Event>>,
     mut today: impl FnMut() -> NaiveDate,
     preload: impl FnOnce(&mut Runtime),
-) -> io::Result<()> {
+) -> io::Result<Model> {
     let mut redraw = true;
     let mut preload = Some(preload);
     loop {
-        redraw |= runtime.poll(model);
+        while let Some(message) = runtime.next_message() {
+            redraw |= !matches!(message, Msg::SearchWorkerStopped) || model.search.is_busy();
+            model = runtime.advance(model, message);
+        }
         let date = today();
         if model.today != date {
-            model.today = date;
+            model = runtime.advance(model, Msg::DayObserved(date));
             redraw = true;
         }
         if redraw {
-            draw(model)?;
+            if let Some(height) = draw(&model)? {
+                model = runtime.advance(model, Msg::ViewportMeasured(height));
+            }
             redraw = false;
         }
         if let Some(preload) = preload.take() {
             preload(runtime);
         }
-        match next_event(if model.search.busy {
+        match next_event(if model.search.is_busy() {
             Duration::from_millis(50)
         } else {
             Duration::from_secs(1)
         })? {
             | Some(Event::Key(key)) => {
-                if let Some(message) = app::handle_key(key, model) {
-                    if let Some(command) = app::update(model, message) {
-                        runtime.execute(command, model);
-                    }
+                if let Some(message) = app::handle_key(key, &model) {
+                    model = runtime.advance(model, message);
                     redraw = true;
                 }
                 if model.should_quit {
-                    return Ok(());
+                    return Ok(model);
                 }
             },
             | Some(Event::Resize(_, _)) => redraw = true,
@@ -120,17 +124,17 @@ mod tests {
             None,
         );
         let date = NaiveDate::default();
-        let mut model = Model::new(date, Default::default());
+        let model = Model::new(date, Default::default());
         let frames = Cell::new(0);
         let preloads = Cell::new(0);
         let settings = Some(Event::Key(KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE)));
         let mut events = [None, settings.clone(), Some(Event::Resize(80, 24)), settings, quit()].into_iter();
         match run_app(
-            &mut model,
+            model,
             &mut runtime,
             |_| {
                 frames.set(frames.get() + 1);
-                Ok(())
+                Ok(None)
             },
             |_| {
                 assert_eq!(preloads.get(), 1);
@@ -206,8 +210,8 @@ mod tests {
                     quit(),
                 ]);
                 let mut events = events.into_iter();
-                match run_app(
-                    &mut model,
+                let mut model = match run_app(
+                    model,
                     &mut runtime,
                     |model| {
                         let draw = Instant::now();
@@ -223,7 +227,7 @@ mod tests {
                         if let Some(input) = pending_input.take() {
                             latencies.borrow_mut().push(input.elapsed().as_secs_f64() * 1000.0);
                         }
-                        Ok(())
+                        Ok(None)
                     },
                     |_| {
                         std::thread::sleep(Duration::from_millis(5));
@@ -241,7 +245,7 @@ mod tests {
                         scheduled.set(true);
                     },
                 ) {
-                    | Ok(_) => (),
+                    | Ok(model) => model,
                     | Err(error) => panic!("Could not run the application event loop: {error:?}"),
                 };
                 let quit_start = match pending_input.take() {
@@ -285,11 +289,11 @@ mod tests {
                 };
                 runtime.execute(command, &mut model);
                 let deadline = Instant::now() + Duration::from_secs(30);
-                while model.search.busy && Instant::now() < deadline {
+                while model.search.is_busy() && Instant::now() < deadline {
                     runtime.poll(&mut model);
                     std::thread::sleep(Duration::from_millis(1));
                 }
-                assert!(!model.search.busy);
+                assert!(!model.search.is_busy());
                 assert!(model.search.notice.is_none(), "{:?}", model.search.notice);
                 assert!(model.search.results[0].literal);
             }
@@ -316,23 +320,23 @@ mod tests {
             None,
         );
         let date = NaiveDate::default();
-        let mut model = Model::new(date, Default::default());
+        let model = Model::new(date, Default::default());
         let settings = Some(Event::Key(KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE)));
         let release = Some(Event::Key(KeyEvent::new_with_kind(KeyCode::F(2), KeyModifiers::NONE, KeyEventKind::Release)));
         let mut events = [None, None, settings.clone(), release, None, settings, Some(Event::Resize(100, 30)), quit()].into_iter();
         let mut frames = Vec::new();
-        match run_app(
-            &mut model,
+        let model = match run_app(
+            model,
             &mut runtime,
             |model| {
                 frames.push(model.show_settings);
-                Ok(())
+                Ok(None)
             },
             |_| Ok(events.next().expect("unexpected poll")),
             || date,
             |_| {},
         ) {
-            | Ok(_) => (),
+            | Ok(model) => model,
             | Err(error) => panic!("Could not run the application event loop: {error:?}"),
         };
         assert_eq!(frames, [false, true, false, false]);
@@ -357,16 +361,16 @@ mod tests {
             | Some(value) => value,
             | None => panic!("Expected a next day for the fixture date"),
         };
-        let mut model = Model::new(date, Default::default());
+        let model = Model::new(date, Default::default());
         let mut dates = [date, tomorrow, tomorrow].into_iter();
         let mut events = [None, None, quit()].into_iter();
         let mut frames = Vec::new();
-        match run_app(
-            &mut model,
+        let model = match run_app(
+            model,
             &mut runtime,
             |model| {
                 frames.push(model.today);
-                Ok(())
+                Ok(None)
             },
             |_| Ok(events.next().expect("unexpected poll")),
             || match dates.next() {
@@ -375,7 +379,7 @@ mod tests {
             },
             |_| {},
         ) {
-            | Ok(_) => (),
+            | Ok(model) => model,
             | Err(error) => panic!("Could not run the application event loop: {error:?}"),
         };
         assert_eq!(frames, [date, tomorrow]);

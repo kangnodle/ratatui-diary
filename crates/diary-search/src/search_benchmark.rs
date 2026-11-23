@@ -1,5 +1,7 @@
 use super::*;
-use diary_application::{Model,
+use diary_application::{Command,
+                        Model,
+                        Msg,
                         Screen,
                         settings::Keybindings};
 use serde_json::{Value,
@@ -10,15 +12,12 @@ use tempfile::TempDir;
 const QUERIES: [&str; 3] = ["진로에 대한 불안", "파스타", "친구와 즐거운 시간"];
 
 fn worker_result(worker: &Worker, id: u64) -> SearchOutput {
-    let message = match worker.responses.recv_timeout(std::time::Duration::from_secs(30)) {
+    let message = match worker.response_timeout(std::time::Duration::from_secs(30)) {
         | Ok(value) => value,
         | Err(error) => panic!("Could not receive the worker response: {error:?}"),
     };
-    let Msg::SearchFinished(received, result) = message else {
-        panic!("unexpected response");
-    };
-    assert_eq!(received, id);
-    let output = match result {
+    assert_eq!(message.revision, id);
+    let output = match message.result {
         | Ok(value) => value,
         | Err(error) => panic!("Search failed: {error:?}"),
     };
@@ -290,8 +289,9 @@ fn profile(index: &mut Index, storage: &Storage, query: &str, baseline: bool) ->
                 | Some(value) => value,
                 | None => panic!("Expected the application update to produce a command"),
             };
-            let mut runtime = crate::Runtime::new(storage.clone(), None);
-            runtime.execute(command, &mut model);
+            assert!(matches!(command, Command::LoadDiary(date) if date == hit.date));
+            let entry = storage.load_entry(hit.date).expect("search hit should refer to a readable entry");
+            let model = diary_application::transition(model, Msg::LoadDiarySuccess(hit.date, entry.content, entry.format)).model;
             assert!(!model.show_error_popup);
             assert_eq!(model.screen, Screen::Editor);
             assert_eq!((model.editor_state.cursor_line, model.editor_state.cursor_col), (hit.line, hit.col));

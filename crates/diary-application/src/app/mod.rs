@@ -5,10 +5,13 @@ use chrono::{Datelike,
 use diary_domain::DiaryEntry;
 use std::collections::HashSet;
 
+pub(crate) mod entry;
 pub mod keymap;
+mod preferences;
 pub mod update;
 
 pub use keymap::handle_key;
+pub(super) use preferences::initialize as initialize_settings;
 pub use update::{Command,
                  update};
 
@@ -26,7 +29,7 @@ pub struct Model {
     pub today: NaiveDate,
     pub preview: Option<(NaiveDate, DiaryEntry)>,
     pub search: crate::search::SearchState,
-    pub(crate) pending_navigation: Option<Navigation>,
+    entry_operation: entry::Operation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +44,11 @@ pub struct DiaryIndex {
 }
 
 impl Model {
+    fn report_error(&mut self, message: crate::i18n::Text, error: String) {
+        self.error_message = Some(format!("{}: {}", self.settings.language.tr(message), error));
+        self.show_error_popup = true;
+    }
+
     pub fn new(today: NaiveDate, entries: HashSet<NaiveDate>) -> Self {
         Self {
             screen: Screen::Calendar,
@@ -61,38 +69,7 @@ impl Model {
             today,
             preview: None,
             search: Default::default(),
-            pending_navigation: None,
+            entry_operation: entry::Operation::Idle,
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Navigation {
-    Quit,
-    Calendar,
-}
-
-pub(crate) fn navigate(model: &mut Model, navigation: Navigation, force_save: bool) -> Option<Command> {
-    if model.editor_state.is_modified || force_save {
-        model.pending_navigation = Some(navigation);
-        Some(Command::SaveDiary(model.editor_state.date, model.editor_state.get_content()))
-    } else {
-        finish_navigation(model, navigation)
-    }
-}
-
-fn finish_navigation(model: &mut Model, navigation: Navigation) -> Option<Command> {
-    if model.show_error_popup {
-        return None;
-    }
-    match navigation {
-        | Navigation::Quit => {
-            model.should_quit = true;
-            None
-        },
-        | Navigation::Calendar => {
-            model.screen = Screen::Calendar;
-            Some(Command::LoadPreview(model.calendar_state.selected_date))
-        },
     }
 }

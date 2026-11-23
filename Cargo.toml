@@ -21,6 +21,7 @@
   diary-application = { path = "crates/diary-application" }
   diary-domain      = { path = "crates/diary-domain" }
   diary-runtime     = { path = "crates/diary-runtime" }
+  diary-search      = { path = "crates/diary-search" }
   diary-storage     = { path = "crates/diary-storage" }
   markdown-render   = { path = "crates/markdown-render" }
   org-render        = { path = "crates/org-render" }

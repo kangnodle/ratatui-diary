@@ -5,22 +5,14 @@ use crate::{Command,
             input::{KeyCode,
                     KeyEvent,
                     KeyModifiers}};
-use chrono::Datelike;
+pub use diary_domain::search::{SearchHit,
+                               SearchOutput};
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SearchHit {
-    pub date: chrono::NaiveDate,
-    pub line: usize,
-    pub col: usize,
-    pub excerpt: String,
-    pub literal: bool,
-    pub anchor: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq)]
-pub struct SearchOutput {
-    pub results: Vec<SearchHit>,
-    pub notice: Option<String>,
+#[derive(Default)]
+enum Request {
+    #[default]
+    Idle,
+    Pending(u64),
 }
 
 #[derive(Default)]
@@ -29,10 +21,48 @@ pub struct SearchState {
     pub results: Vec<SearchHit>,
     pub selected: usize,
     pub editing: bool,
-    pub busy: bool,
+    request: Request,
     pub notice: Option<String>,
-    pub revision: u64,
-    pub(crate) target: Option<SearchHit>,
+    revision: u64,
+}
+
+impl SearchState {
+    pub fn is_busy(&self) -> bool { matches!(self.request, Request::Pending(_)) }
+
+    pub fn pending_revision(&self) -> Option<u64> {
+        match self.request {
+            | Request::Pending(id) => Some(id),
+            | Request::Idle => None,
+        }
+    }
+
+    pub(crate) fn finish(&mut self, revision: u64, result: Result<SearchOutput, String>) {
+        if self.pending_revision() != Some(revision) {
+            return;
+        }
+        self.request = Request::Idle;
+        match result {
+            | Ok(output) => {
+                self.results = output.results;
+                self.notice = output.notice;
+            },
+            | Err(error) => self.notice = Some(error),
+        }
+    }
+
+    pub(crate) fn worker_stopped(&mut self) {
+        if let Some(revision) = self.pending_revision() {
+            self.finish(revision, Err("검색 작업이 종료되었습니다 / Search worker stopped".into()));
+        }
+    }
+}
+
+pub(crate) fn open(model: &mut Model) -> Option<Command> {
+    model.screen = Screen::Search;
+    model.search.editing = true;
+    model.editor_state.submode = None;
+    model.editor_state.helix.prefix = None;
+    None
 }
 
 pub fn handle_key(key: KeyEvent, model: &Model) -> Option<Msg> {
@@ -58,7 +88,7 @@ pub fn handle_key(key: KeyEvent, model: &Model) -> Option<Msg> {
 
 fn invalidate(state: &mut SearchState) {
     state.revision += 1;
-    state.busy = false;
+    state.request = Request::Idle;
     state.results.clear();
     state.selected = 0;
     state.notice = None;
@@ -85,46 +115,22 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
                 state.selected.saturating_sub(1)
             };
         },
-        | Msg::SearchSubmit if !state.editing && !state.busy && !state.results.is_empty() => {
-            let hit = &state.results[state.selected];
-            state.target = Some(hit.clone());
-            model.calendar_state.selected_date = hit.date;
-            model.calendar_state.current_year = hit.date.year();
-            model.calendar_state.current_month = hit.date.month();
-            model.screen = Screen::Editor;
-            return Some(Command::LoadDiary(hit.date));
+        | Msg::SearchSubmit if !state.editing && !state.is_busy() && !state.results.is_empty() => {
+            let hit = state.results[state.selected].clone();
+            return Some(crate::app::entry::open(model, hit.date, Some(hit)));
         },
-        | Msg::SearchSubmit if !state.busy && !state.query.trim().is_empty() => {
+        | Msg::SearchSubmit if !state.is_busy() && !state.query.trim().is_empty() => {
             invalidate(state);
             state.editing = false;
-            state.busy = true;
+            state.request = Request::Pending(state.revision);
             return Some(Command::Search(state.revision, state.query.trim().to_string()));
         },
         | Msg::SearchClose => {
             state.revision += 1;
-            state.busy = false;
-            model.screen = Screen::Calendar;
-            return Some(Command::LoadPreview(model.calendar_state.selected_date));
+            state.request = Request::Idle;
+            return Some(crate::app::entry::return_to_calendar(model));
         },
         | _ => {},
     }
     None
-}
-
-pub(crate) fn locate(hit: &SearchHit, content: &str) -> Option<(usize, usize)> {
-    if hit.anchor.is_empty() {
-        return None;
-    }
-    let content = content.replace("\r\n", "\n");
-    let anchor = hit.anchor.replace("\r\n", "\n");
-    content
-        .match_indices(&anchor)
-        .map(|(byte, _)| {
-            let prefix = &content[.. byte];
-            (
-                prefix.bytes().filter(|&b| b == b'\n').count(),
-                prefix.rsplit('\n').next().unwrap_or("").chars().count(),
-            )
-        })
-        .min_by_key(|&(line, col)| (line.abs_diff(hit.line), col.abs_diff(hit.col)))
 }

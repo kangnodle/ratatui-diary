@@ -1,85 +1,38 @@
+pub use crate::command::Command;
 use crate::{app::{Model,
                   Screen},
             calendar,
             editor,
             message::Msg};
-use chrono::NaiveDate;
-
-pub enum Command {
-    LoadPreview(NaiveDate),
-    SaveSettings,
-    LoadDiary(NaiveDate),
-    SaveDiary(NaiveDate, String),
-    DeleteDiary(NaiveDate),
-    Search(u64, String),
-}
 
 pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
     match msg {
-        | Msg::OpenSearch if model.screen == Screen::Calendar => {
-            model.screen = Screen::Search;
-            model.search.editing = true;
-            model.editor_state.submode = None;
-            model.editor_state.helix.prefix = None;
-            None
-        },
+        | Msg::OpenSearch if model.screen == Screen::Calendar => crate::search::open(model),
         | Msg::SearchFinished(id, result) => {
-            if model.screen == Screen::Search && id == model.search.revision {
-                model.search.busy = false;
-                match result {
-                    | Ok(output) => {
-                        model.search.results = output.results;
-                        model.search.notice = output.notice;
-                    },
-                    | Err(error) => model.search.notice = Some(error),
-                }
+            if model.screen == Screen::Search {
+                model.search.finish(id, result);
             }
             None
         },
-        | Msg::ToggleSettings => {
-            model.show_settings = !model.show_settings;
-            None
-        },
-        | Msg::SettingsMove => {
-            model.settings_row = (model.settings_row + 1) % 3;
-            None
-        },
-        | Msg::SettingsMoveBack => {
-            model.settings_row = (model.settings_row + 2) % 3;
-            None
-        },
-        | Msg::SettingsChange(forward) => {
-            use crate::settings::{Language,
-                                  Theme};
-            if model.settings_row == 0 {
-                model.settings.language = match model.settings.language {
-                    | Language::Korean => Language::English,
-                    | Language::English => Language::Korean,
-                };
-            } else if model.settings_row == 1 {
-                model.settings.theme = match (model.settings.theme, forward) {
-                    | (Theme::System, true) | (Theme::Light, false) => Theme::Dark,
-                    | (Theme::Dark, true) | (Theme::System, false) => Theme::Light,
-                    | _ => Theme::System,
-                };
-            } else {
-                use crate::settings::Keybindings;
-                model.settings.keybindings = match model.settings.keybindings {
-                    | Keybindings::Emacs => Keybindings::Helix,
-                    | Keybindings::Helix => Keybindings::Emacs,
-                };
-                editor::helix::reset(&mut model.editor_state, model.settings.keybindings == Keybindings::Helix);
+        | Msg::SearchWorkerStopped => {
+            if model.screen == Screen::Search {
+                model.search.worker_stopped();
             }
-            Some(Command::SaveSettings)
+            None
         },
-        | Msg::SettingsSaveFailed(error) => {
-            model.error_message = Some(format!("{}: {}", model.settings.language.tr(crate::i18n::Text::FailedToSaveSettings), error));
-            model.show_error_popup = true;
+        | Msg::ToggleSettings | Msg::SettingsMove | Msg::SettingsMoveBack | Msg::SettingsChange(_) | Msg::SettingsSaveFailed(_) =>
+            super::preferences::interact(model, msg),
+        | Msg::DayObserved(date) => {
+            model.today = date;
+            None
+        },
+        | Msg::ViewportMeasured(height) => {
+            model.editor_state.viewport_height = height;
             None
         },
         | Msg::Quit => {
             model.editor_state.submode = None;
-            super::navigate(model, super::Navigation::Quit, false)
+            super::entry::navigate(model, super::entry::Navigation::Quit, false)
         },
         | Msg::EditorEnterCtrlXMode => {
             model.editor_state.submode = Some(editor::state::EditorSubMode::CtrlX);
@@ -103,7 +56,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
         },
         | Msg::EditorCtrlXBack if model.screen == Screen::Editor => {
             model.editor_state.submode = None;
-            super::navigate(model, super::Navigation::Calendar, false)
+            super::entry::navigate(model, super::entry::Navigation::Calendar, false)
         },
         | Msg::EditorUndo if model.editor_state.submode == Some(editor::state::EditorSubMode::CtrlX) => {
             model.editor_state.submode = None;
@@ -117,76 +70,15 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             None
         },
 
-        | Msg::LoadDiarySuccess(date, content, format) => {
-            if model.screen == Screen::Editor {
-                let target = match model.search.target.take() {
-                    | Some(hit) => match crate::search::locate(&hit, &content) {
-                        | Some(position) => Some(position),
-                        | None =>
-                            return update(
-                                model,
-                                Msg::LoadDiaryFailed(
-                                    model
-                                        .settings
-                                        .language
-                                        .text(
-                                            "검색한 구절이 변경되었거나 삭제되었습니다. 다시 검색하세요.",
-                                            "The passage changed or was deleted. Please search again.",
-                                        )
-                                        .to_string(),
-                                ),
-                            ),
-                    },
-                    | None => None,
-                };
-                model.editor_state.date = date;
-                model.editor_state.format = format;
-                model.editor_state.load_content(&content);
-                if let Some((line, col)) = target {
-                    model.editor_state.cursor_line = line.min(model.editor_state.content.len().saturating_sub(1));
-                    model.editor_state.cursor_col = col.min(model.editor_state.content[model.editor_state.cursor_line].chars().count());
-                }
-                model.editor_state.submode = None;
-                model.editor_state.search_origin = None;
-                if model.settings.keybindings == crate::settings::Keybindings::Helix {
-                    editor::helix::reset(&mut model.editor_state, true);
-                }
-            }
-            None
-        },
-        | Msg::LoadDiaryFailed(error) => {
-            model.search.target = None;
-            model.screen = Screen::Calendar;
-            model.error_message = Some(format!("{}: {}", model.settings.language.tr(crate::i18n::Text::LoadFailed), error));
-            model.show_error_popup = true;
-            None
-        },
-        | Msg::SaveDiarySuccess(date) => {
-            model.diary_entries.entries.insert(date);
-            if date == model.editor_state.date {
-                model.editor_state.is_modified = false;
-                if let Some(navigation) = model.pending_navigation.take() {
-                    return super::finish_navigation(model, navigation);
-                }
-            }
-            None
-        },
-        | Msg::SaveDiaryFailed(error) => {
-            model.pending_navigation = None;
-            model.error_message = Some(format!("{}: {}", model.settings.language.tr(crate::i18n::Text::SaveFailed), error));
-            model.show_error_popup = true;
-            None
-        },
-        | Msg::DeleteDiarySuccess(date) => {
-            model.diary_entries.entries.remove(&date);
-            model.screen = Screen::Calendar;
-            Some(Command::LoadPreview(model.calendar_state.selected_date))
-        },
+        | Msg::LoadDiarySuccess(date, content, format) => super::entry::opened(model, date, content, format),
+        | Msg::LoadDiaryFailed(error) => super::entry::open_failed(model, error),
+        | Msg::SaveDiarySuccess(date) => super::entry::saved(model, date),
+        | Msg::SaveDiaryFailed(error) => super::entry::save_failed(model, error),
+        | Msg::DeleteDiarySuccess(date) => super::entry::deleted(model, date),
         | Msg::RefreshIndex(entries) => {
             model.diary_entries.entries = entries;
             None
         },
-
         | Msg::PreviewLoaded(date, entry) => {
             if date == model.calendar_state.selected_date {
                 model.preview = entry.map(|entry| (date, entry));

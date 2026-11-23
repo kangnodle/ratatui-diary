@@ -4,6 +4,8 @@ use std::collections::HashSet;
 #[derive(Debug, Clone, PartialEq)]
 pub enum Msg {
     Quit,
+    DayObserved(NaiveDate),
+    ViewportMeasured(usize),
     ToggleSettings,
     SettingsMove,
     SettingsMoveBack,
@@ -18,6 +20,7 @@ pub enum Msg {
     SearchMove(bool),
     SearchEdit,
     SearchClose,
+    SearchWorkerStopped,
     SearchFinished(u64, Result<crate::search::SearchOutput, String>),
 
     EditorMoveLeft,

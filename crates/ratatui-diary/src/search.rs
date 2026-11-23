@@ -77,7 +77,7 @@ pub fn render(frame: &mut Frame, model: &Model) {
     let mut selection = ListState::default().with_selected((!state.results.is_empty()).then_some(state.selected));
     frame.render_stateful_widget(list, panes[0], &mut selection);
     let detail = state.results.get(state.selected).map(|hit| hit.excerpt.as_str()).unwrap_or_else(|| {
-        if state.busy {
+        if state.is_busy() {
             lang.text(
                 "검색 중… 첫 검색은 모델 다운로드·색인으로 시간이 걸릴 수 있습니다.",
                 "Searching… The first search may take a while to download the model and index diaries.",
@@ -110,7 +110,7 @@ pub fn render(frame: &mut Frame, model: &Model) {
     if model.settings.keybindings == crate::settings::Keybindings::Helix {
         help.push_str(lang.text(" | j/k:결과 이동", " | j/k:Select result"));
     }
-    if state.busy {
+    if state.is_busy() {
         help.push_str(lang.text("\n검색 중…", "\nSearching…"));
     }
     if let Some(notice) = &state.notice {

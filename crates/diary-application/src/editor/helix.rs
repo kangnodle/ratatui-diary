@@ -354,8 +354,8 @@ fn command(model: &mut Model) -> Option<Command> {
     model.editor_state.helix.prefix = None;
     model.editor_state.helix.prompt.clear();
     match cmd.as_str() {
-        | "w" | "write" if model.screen == Screen::Editor => Some(Command::SaveDiary(model.editor_state.date, model.editor_state.get_content())),
-        | "wq" | "write-quit" | "x" if model.screen == Screen::Editor => crate::app::navigate(model, crate::app::Navigation::Quit, true),
+        | "w" | "write" if model.screen == Screen::Editor => Some(crate::app::entry::save(&model.editor_state)),
+        | "wq" | "write-quit" | "x" if model.screen == Screen::Editor => crate::app::entry::navigate(model, crate::app::entry::Navigation::Quit, true),
         | "q" | "quit" | "bc" | "buffer-close" if model.editor_state.is_modified => {
             error(
                 model,
@@ -368,10 +368,7 @@ fn command(model: &mut Model) -> Option<Command> {
             model.should_quit = true;
             None
         },
-        | "bc" | "buffer-close" => {
-            model.screen = Screen::Calendar;
-            Some(Command::LoadPreview(model.calendar_state.selected_date))
-        },
+        | "bc" | "buffer-close" => Some(crate::app::entry::return_to_calendar(model)),
         | _ => {
             error(
                 model,
@@ -649,7 +646,7 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
     if prefix == Some(Prefix::Space) {
         if key.code == KeyCode::Char('f') {
             state.helix.mode = Mode::Normal;
-            return crate::app::navigate(model, crate::app::Navigation::Calendar, false);
+            return crate::app::entry::navigate(model, crate::app::entry::Navigation::Calendar, false);
         }
         return None;
     }
