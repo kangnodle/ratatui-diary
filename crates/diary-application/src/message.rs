@@ -1,5 +1,3 @@
-//! 앱 메시지와 Emacs/Helix 편집 입력.
-
 use chrono::NaiveDate;
 use std::collections::HashSet;
 
@@ -22,7 +20,6 @@ pub enum Msg {
     SearchClose,
     SearchFinished(u64, Result<crate::search::SearchOutput, String>),
 
-    // 에디터 - 네비게이션
     EditorMoveLeft,
     EditorMoveRight,
     EditorMoveUp,
@@ -30,7 +27,6 @@ pub enum Msg {
     EditorWordNext,
     EditorWordPrev,
 
-    // 에디터 - 점프
     EditorGotoDocStart,
     EditorGotoDocEnd,
     EditorGotoLineStart,
@@ -38,17 +34,14 @@ pub enum Msg {
     EditorExitSubMode,
     EditorKeyboardQuit,
 
-    // 에디터 - 문자 입력 (항상 활성)
     EditorInsertChar(char),
     EditorBackspace,
     EditorNewLine,
     EditorOpenLine,
 
-    // 에디터 - Selection
     EditorToggleSelection,
     EditorSelectLine,
 
-    // 에디터 - 편집
     EditorDelete,
     EditorDeleteForward,
     EditorKillLine,
@@ -57,11 +50,9 @@ pub enum Msg {
     EditorYank,
     EditorPaste,
 
-    // 에디터 - Undo/Redo
     EditorUndo,
     EditorRedo,
 
-    // 에디터 - 검색
     EditorEnterSearchMode,
     EditorEnterReverseSearchMode,
     EditorSearchChar(char),
@@ -70,12 +61,10 @@ pub enum Msg {
     EditorSearchPrev,
     EditorExecuteSearch,
 
-    // 에디터 - Ctrl+X 프리픽스
     EditorEnterCtrlXMode,
     EditorCtrlXSave,
     EditorCtrlXBack,
 
-    // 달력
     CalendarMoveLeft,
     CalendarMoveRight,
     CalendarMoveUp,
@@ -86,7 +75,6 @@ pub enum Msg {
     CalendarNextYear,
     CalendarPrevYear,
 
-    // 파일 I/O 결과
     LoadDiarySuccess(NaiveDate, String, diary_domain::EntryFormat),
     LoadDiaryFailed(String),
     SaveDiarySuccess(NaiveDate),

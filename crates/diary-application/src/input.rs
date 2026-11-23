@@ -1,4 +1,3 @@
-//! Logical input values, independent of terminal event libraries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum KeyCode {
     Backspace,

@@ -11,13 +11,22 @@ use tempfile::TempDir;
 
 #[test]
 fn background_search_completes_through_poll_without_blocking_execute() {
-    let directory = TempDir::new().unwrap();
-    let storage = Storage::with_dir(directory.path()).unwrap();
+    let directory = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(directory.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
     let mut runtime = Runtime::new(storage, None);
     let mut model = Model::new(chrono::NaiveDate::default(), Default::default());
     update(&mut model, Msg::OpenSearch);
     update(&mut model, Msg::SearchChar('가'));
-    let command = update(&mut model, Msg::SearchSubmit).unwrap();
+    let command = match update(&mut model, Msg::SearchSubmit) {
+        | Some(value) => value,
+        | None => panic!("Expected the application update to produce a command"),
+    };
     runtime.execute(command, &mut model);
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
     while model.search.busy && std::time::Instant::now() < deadline {
@@ -30,9 +39,21 @@ fn background_search_completes_through_poll_without_blocking_execute() {
 }
 
 fn fixture() -> (TempDir, Runtime, Model) {
-    let directory = TempDir::new().unwrap();
-    let storage = Storage::with_dir(directory.path()).unwrap();
-    let model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), Default::default());
+    let directory = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(directory.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
+    let model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        Default::default(),
+    );
     (directory, Runtime::new(storage, None), model)
 }
 
@@ -40,18 +61,43 @@ fn fixture() -> (TempDir, Runtime, Model) {
 fn preview_and_editor_receive_the_same_legacy_format() {
     let (directory, mut runtime, mut model) = fixture();
     let date = model.calendar_state.selected_date;
-    std::fs::write(directory.path().join(format!("entries/{date}.md")), "# legacy").unwrap();
+    match std::fs::write(directory.path().join(format!("entries/{date}.md")), "# legacy") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
     runtime.execute(Command::LoadPreview(date), &mut model);
-    assert_eq!(model.preview.as_ref().unwrap().1.format, EntryFormat::Markdown);
-    let command = update(&mut model, Msg::CalendarSelectDate).unwrap();
+    assert_eq!(
+        (match model.preview.as_ref() {
+            | Some(value) => value,
+            | None => panic!("Expected preview to be present"),
+        })
+        .1
+        .format,
+        EntryFormat::Markdown
+    );
+    let command = match update(&mut model, Msg::CalendarSelectDate) {
+        | Some(value) => value,
+        | None => panic!("Expected the application update to produce a command"),
+    };
     runtime.execute(command, &mut model);
     assert_eq!(model.editor_state.format, EntryFormat::Markdown);
     assert_eq!(model.editor_state.get_content(), "# legacy");
     model.editor_state.insert_char('a');
-    let command = update(&mut model, Msg::EditorCtrlXBack).unwrap();
+    let command = match update(&mut model, Msg::EditorCtrlXBack) {
+        | Some(value) => value,
+        | None => panic!("Expected the application update to produce a command"),
+    };
     runtime.execute(command, &mut model);
     assert_eq!(model.screen, Screen::Calendar);
-    assert_eq!(model.preview.as_ref().unwrap().1.content, "a# legacy");
+    assert_eq!(
+        (match model.preview.as_ref() {
+            | Some(value) => value,
+            | None => panic!("Expected preview to be present"),
+        })
+        .1
+        .content,
+        "a# legacy"
+    );
     assert!(!directory.path().join(format!("entries/{date}.org")).exists());
 }
 
@@ -61,19 +107,37 @@ fn failed_save_keeps_the_editor_open_and_retry_can_exit() {
     model.screen = Screen::Editor;
     model.editor_state.insert_char('한');
     let path = directory.path().join(format!("entries/{}.org", model.editor_state.date));
-    std::fs::create_dir(&path).unwrap();
-    let command = update(&mut model, Msg::Quit).unwrap();
+    match std::fs::create_dir(&path) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not create the directory: {error:?}"),
+    };
+    let command = match update(&mut model, Msg::Quit) {
+        | Some(value) => value,
+        | None => panic!("Expected the application update to produce a command"),
+    };
     runtime.execute(command, &mut model);
     assert!(!model.should_quit);
     assert!(model.show_error_popup);
     assert!(model.editor_state.is_modified);
     assert_eq!(model.editor_state.get_content(), "한");
-    std::fs::remove_dir(&path).unwrap();
+    match std::fs::remove_dir(&path) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not remove the directory: {error:?}"),
+    };
     update(&mut model, Msg::DismissError);
-    let command = update(&mut model, Msg::Quit).unwrap();
+    let command = match update(&mut model, Msg::Quit) {
+        | Some(value) => value,
+        | None => panic!("Expected the application update to produce a command"),
+    };
     runtime.execute(command, &mut model);
     assert!(model.should_quit);
-    assert_eq!(std::fs::read_to_string(path).unwrap(), "한");
+    assert_eq!(
+        match std::fs::read_to_string(path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "한"
+    );
 }
 
 #[test]
@@ -87,7 +151,10 @@ fn missing_diaries_are_empty_but_other_read_errors_are_visible() {
     runtime.execute(Command::LoadDiary(date), &mut model);
     assert_eq!(model.editor_state.get_content(), "");
     assert_eq!(model.editor_state.format, EntryFormat::Org);
-    std::fs::create_dir(directory.path().join(format!("entries/{date}.org"))).unwrap();
+    match std::fs::create_dir(directory.path().join(format!("entries/{date}.org"))) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not create the directory: {error:?}"),
+    };
     runtime.execute(Command::LoadDiary(date), &mut model);
     assert!(model.show_error_popup);
 }
@@ -97,11 +164,20 @@ fn failed_open_cannot_relabel_the_previous_buffer_and_overwrite_another_diary() 
     let (directory, mut runtime, mut model) = fixture();
     let previous = model.editor_state.date;
     model.editor_state.load_content("* Previous diary");
-    let selected = previous.succ_opt().unwrap();
+    let selected = match previous.succ_opt() {
+        | Some(value) => value,
+        | None => panic!("Expected a next day for the fixture date"),
+    };
     let path = directory.path().join(format!("entries/{selected}.org"));
-    std::fs::write(&path, [0xff]).unwrap();
+    match std::fs::write(&path, [0xff]) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
     model.calendar_state.selected_date = selected;
-    let command = update(&mut model, Msg::CalendarSelectDate).unwrap();
+    let command = match update(&mut model, Msg::CalendarSelectDate) {
+        | Some(value) => value,
+        | None => panic!("Expected the application update to produce a command"),
+    };
     runtime.execute(command, &mut model);
     update(&mut model, Msg::DismissError);
     assert_eq!(model.screen, Screen::Calendar);
@@ -109,5 +185,11 @@ fn failed_open_cannot_relabel_the_previous_buffer_and_overwrite_another_diary() 
     assert_eq!(model.editor_state.get_content(), "* Previous diary");
     update(&mut model, Msg::EditorEnterCtrlXMode);
     assert!(update(&mut model, Msg::EditorCtrlXSave).is_none());
-    assert_eq!(std::fs::read(path).unwrap(), [0xff]);
+    assert_eq!(
+        match std::fs::read(path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the file: {error:?}"),
+        },
+        [0xff]
+    );
 }

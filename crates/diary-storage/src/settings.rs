@@ -1,4 +1,3 @@
-//! Filesystem adapter for the domain's preferences format.
 use crate::file_io;
 use diary_domain::settings::Settings;
 use std::{io,

@@ -1,4 +1,3 @@
-//! Whole-diary search state; inference and filesystem access belong to runtime.
 use crate::{Command,
             Model,
             Msg,
@@ -112,7 +111,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
     None
 }
 
-/// Re-resolve the passage if another process edited the diary since the search.
 pub(crate) fn locate(hit: &SearchHit, content: &str) -> Option<(usize, usize)> {
     if hit.anchor.is_empty() {
         return None;

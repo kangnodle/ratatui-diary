@@ -17,8 +17,17 @@ use ratatui_diary::{app,
 use tempfile::TempDir;
 
 fn fixture(content: &str) -> (TempDir, TestApp) {
-    let dir = TempDir::new().unwrap();
-    let mut model = TestApp::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
+    let dir = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let mut model = TestApp::new(
+        Default::default(),
+        match Storage::with_dir(dir.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        },
+    );
     model.runtime.settings_path = Some(dir.path().join("settings.conf"));
     model.settings.keybindings = Keybindings::Helix;
     model.screen = Screen::Editor;
@@ -50,19 +59,47 @@ fn point(model: &TestApp) -> (usize, usize) { (model.editor_state.cursor_line, m
 
 #[test]
 fn preferences_are_backward_compatible_and_persist_both_keymaps() {
-    let dir = TempDir::new().unwrap();
+    let dir = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
     let path = dir.path().join("settings.conf");
-    std::fs::write(&path, "language=en\ntheme=dark\n").unwrap();
-    assert_eq!(diary_storage::settings::load(&path).unwrap().keybindings, Keybindings::Emacs);
+    match std::fs::write(&path, "language=en\ntheme=dark\n") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
+    assert_eq!(
+        (match diary_storage::settings::load(&path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not load settings: {error:?}"),
+        })
+        .keybindings,
+        Keybindings::Emacs
+    );
     for mode in [Keybindings::Emacs, Keybindings::Helix] {
         let settings = Settings {
             keybindings: mode,
-            ..diary_storage::settings::load(&path).unwrap()
+            ..match diary_storage::settings::load(&path) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load settings: {error:?}"),
+            }
         };
-        diary_storage::settings::save(settings, &path).unwrap();
-        assert_eq!(diary_storage::settings::load(&path).unwrap(), settings);
+        match diary_storage::settings::save(settings, &path) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save settings: {error:?}"),
+        };
+        assert_eq!(
+            match diary_storage::settings::load(&path) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load settings: {error:?}"),
+            },
+            settings
+        );
     }
-    std::fs::write(&path, "keybindings=vim\n").unwrap();
+    match std::fs::write(&path, "keybindings=vim\n") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
     assert_eq!(diary_storage::settings::load(&path).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
 }
 
@@ -80,9 +117,14 @@ fn switching_from_settings_preserves_inserted_text_and_undo_history() {
     assert_eq!(point(&model), (0, 2));
     assert!(model.editor_state.is_modified);
     assert_eq!(
-        diary_storage::settings::load(model.runtime.settings_path.as_deref().unwrap())
-            .unwrap()
-            .keybindings,
+        (match diary_storage::settings::load(match model.runtime.settings_path.as_deref() {
+            | Some(value) => value,
+            | None => panic!("Expected settings path to be present"),
+        }) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not load settings: {error:?}"),
+        })
+        .keybindings,
         Keybindings::Emacs
     );
     esc(&mut model);
@@ -291,15 +333,27 @@ fn helix_quit_refuses_dirty_text_and_write_quit_only_exits_after_success() {
     assert!(model.show_error_popup);
     esc(&mut model);
     let path = dir.path().join(format!("entries/{}.org", model.editor_state.date));
-    std::fs::create_dir(&path).unwrap();
+    match std::fs::create_dir(&path) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not create the directory: {error:?}"),
+    };
     command(&mut model, "wq");
     assert!(!model.should_quit);
     assert!(model.editor_state.is_modified);
     esc(&mut model);
-    std::fs::remove_dir(&path).unwrap();
+    match std::fs::remove_dir(&path) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not remove the directory: {error:?}"),
+    };
     command(&mut model, "wq");
     assert!(model.should_quit);
-    assert_eq!(std::fs::read_to_string(path).unwrap(), "* Org diary");
+    assert_eq!(
+        match std::fs::read_to_string(path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "* Org diary"
+    );
 }
 
 #[test]
@@ -341,9 +395,18 @@ fn page_motion_uses_viewport_height_and_keeps_the_cursor_visible() {
     key(&mut model, KeyCode::Char('u'), KeyModifiers::CONTROL);
     assert_eq!(point(&model), (4, 0));
     keys(&mut model, "ge");
-    let mut terminal = Terminal::new(TestBackend::new(80, 12)).unwrap();
-    terminal.draw(|f| app::view(f, &model)).unwrap();
-    let cursor = terminal.get_cursor_position().unwrap();
+    let mut terminal = match Terminal::new(TestBackend::new(80, 12)) {
+        | Ok(value) => value,
+        | Err(never) => match never {},
+    };
+    match terminal.draw(|f| app::view(f, &model)) {
+        | Ok(_) => (),
+        | Err(never) => match never {},
+    };
+    let cursor = match terminal.get_cursor_position() {
+        | Ok(value) => value,
+        | Err(never) => match never {},
+    };
     assert!(cursor.x < 40 && cursor.y < 9);
     let text: String = terminal.backend().buffer().content.iter().map(|cell| cell.symbol()).collect();
     assert!(text.contains("line49"));
@@ -357,8 +420,14 @@ fn helix_modes_and_both_languages_render_safely_in_small_terminals() {
         for mode in [Mode::Normal, Mode::Insert, Mode::Select] {
             model.editor_state.helix.mode = mode;
             for (w, h) in [(1, 1), (20, 5), (80, 24), (160, 30)] {
-                let mut terminal = Terminal::new(TestBackend::new(w, h)).unwrap();
-                terminal.draw(|f| app::view(f, &model)).unwrap();
+                let mut terminal = match Terminal::new(TestBackend::new(w, h)) {
+                    | Ok(value) => value,
+                    | Err(never) => match never {},
+                };
+                match terminal.draw(|f| app::view(f, &model)) {
+                    | Ok(_) => (),
+                    | Err(never) => match never {},
+                };
             }
         }
     }
@@ -385,7 +454,13 @@ fn line_paste_at_eof_and_save_reload_preserve_the_final_newline() {
     command(&mut model, "w");
     let date = model.editor_state.date;
     let path = dir.path().join(format!("entries/{date}.org"));
-    assert_eq!(std::fs::read_to_string(path).unwrap(), "one\ntwo\none\n");
+    assert_eq!(
+        match std::fs::read_to_string(path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "one\ntwo\none\n"
+    );
     command(&mut model, "bc");
     enter(&mut model);
     assert_eq!(model.editor_state.get_content(), "one\ntwo\none\n");
@@ -414,12 +489,21 @@ fn opening_and_splitting_lines_keeps_the_existing_indentation() {
 fn writing_legacy_markdown_from_helix_preserves_its_format() {
     let (dir, mut model) = fixture("");
     let path = dir.path().join(format!("entries/{}.md", model.editor_state.date));
-    std::fs::write(&path, "# Existing diary\n").unwrap();
+    match std::fs::write(&path, "# Existing diary\n") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
     crate::common::execute_command(app::Command::LoadDiary(model.editor_state.date), &mut model);
     keys(&mut model, "A updated");
     esc(&mut model);
     command(&mut model, "w");
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), "# Existing diary updated\n");
+    assert_eq!(
+        match std::fs::read_to_string(&path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "# Existing diary updated\n"
+    );
     assert!(!path.with_extension("org").exists());
 }
 
@@ -427,15 +511,27 @@ fn writing_legacy_markdown_from_helix_preserves_its_format() {
 fn unmodified_write_quit_still_writes_and_observes_save_failures() {
     let (dir, mut model) = fixture("unchanged");
     let path = dir.path().join(format!("entries/{}.org", model.editor_state.date));
-    std::fs::create_dir(&path).unwrap();
+    match std::fs::create_dir(&path) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not create the directory: {error:?}"),
+    };
     command(&mut model, "wq");
     assert!(!model.should_quit);
     assert!(model.show_error_popup);
     esc(&mut model);
-    std::fs::remove_dir(&path).unwrap();
+    match std::fs::remove_dir(&path) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not remove the directory: {error:?}"),
+    };
     command(&mut model, "wq");
     assert!(model.should_quit);
-    assert_eq!(std::fs::read_to_string(path).unwrap(), "unchanged");
+    assert_eq!(
+        match std::fs::read_to_string(path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "unchanged"
+    );
 }
 
 #[test]
@@ -448,8 +544,14 @@ fn settings_show_the_keymap_in_every_language_theme_and_screen() {
                 model.settings.theme = theme;
                 model.screen = screen;
                 model.show_settings = true;
-                let mut terminal = Terminal::new(TestBackend::new(160, 30)).unwrap();
-                terminal.draw(|f| app::view(f, &model)).unwrap();
+                let mut terminal = match Terminal::new(TestBackend::new(160, 30)) {
+                    | Ok(value) => value,
+                    | Err(never) => match never {},
+                };
+                match terminal.draw(|f| app::view(f, &model)) {
+                    | Ok(_) => (),
+                    | Err(never) => match never {},
+                };
                 let text: String = terminal.backend().buffer().content.iter().map(|cell| cell.symbol()).collect();
                 assert!(text.contains("Helix"));
                 assert!(text.replace(' ', "").contains(language.text("키바인딩", "Keybindings")));

@@ -1,4 +1,3 @@
-//! Reproducible, opt-in CPU benchmark. Never reads the user's diary directory.
 use super::*;
 use diary_application::{Model,
                         Screen,
@@ -11,12 +10,18 @@ use tempfile::TempDir;
 const QUERIES: [&str; 3] = ["진로에 대한 불안", "파스타", "친구와 즐거운 시간"];
 
 fn worker_result(worker: &Worker, id: u64) -> SearchOutput {
-    let message = worker.responses.recv_timeout(std::time::Duration::from_secs(30)).unwrap();
+    let message = match worker.responses.recv_timeout(std::time::Duration::from_secs(30)) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not receive the worker response: {error:?}"),
+    };
     let Msg::SearchFinished(received, result) = message else {
         panic!("unexpected response");
     };
     assert_eq!(received, id);
-    let output = result.unwrap();
+    let output = match result {
+        | Ok(value) => value,
+        | Err(error) => panic!("Search failed: {error:?}"),
+    };
     assert!(output.notice.is_none(), "{:?}", output.notice);
     output
 }
@@ -29,34 +34,65 @@ fn search_preload_benchmark() {
     }
     let (_directory, storage) = fixture();
     let mut index = Index::default();
-    let expected: Vec<_> = QUERIES.iter().map(|q| index.search(&storage, q).unwrap()).collect();
+    let expected: Vec<_> = QUERIES
+        .iter()
+        .map(|q| match index.search(&storage, q) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not search the diaries: {error:?}"),
+        })
+        .collect();
     assert!(expected.iter().all(|r| r.notice.is_none()));
     drop(index);
     let mut trials = Vec::new();
     for _ in 0 .. 3 {
         let start = Instant::now();
-        let lazy = Worker::start(storage.clone()).unwrap();
-        lazy.submit(1, QUERIES[0].into()).unwrap();
+        let lazy = match Worker::start(storage.clone()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not start the search worker: {error:?}"),
+        };
+        match lazy.submit(1, QUERIES[0].into()) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not submit the search request: {error:?}"),
+        };
         assert_eq!(worker_result(&lazy, 1), expected[0]);
         let lazy_first = elapsed(start);
         drop(lazy);
         let start = Instant::now();
-        let prepared = Worker::preload(storage.clone()).unwrap();
+        let prepared = match Worker::preload(storage.clone()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not start preloading the search model: {error:?}"),
+        };
         let schedule = elapsed(start);
-        prepared.ready.recv_timeout(std::time::Duration::from_secs(30)).unwrap().unwrap();
+        match prepared.ready.recv_timeout(std::time::Duration::from_secs(30)) {
+            | Ok(Ok(_)) => (),
+            | Ok(Err(error)) => panic!("Search model initialization failed: {error:?}"),
+            | Err(error) => panic!("Could not receive the worker response: {error:?}"),
+        };
         let ready = elapsed(start);
         let start = Instant::now();
-        prepared.submit(1, QUERIES[0].into()).unwrap();
+        match prepared.submit(1, QUERIES[0].into()) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not submit the search request: {error:?}"),
+        };
         assert_eq!(worker_result(&prepared, 1), expected[0]);
         let prepared_first = elapsed(start);
         for (i, query) in QUERIES.iter().enumerate().skip(1) {
-            prepared.submit(i as u64 + 1, (*query).into()).unwrap();
+            match prepared.submit(i as u64 + 1, (*query).into()) {
+                | Ok(_) => (),
+                | Err(error) => panic!("Could not submit the search request: {error:?}"),
+            };
             assert_eq!(worker_result(&prepared, i as u64 + 1), expected[i]);
         }
         drop(prepared);
         let start = Instant::now();
-        let immediate = Worker::preload(storage.clone()).unwrap();
-        immediate.submit(1, QUERIES[0].into()).unwrap();
+        let immediate = match Worker::preload(storage.clone()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not start preloading the search model: {error:?}"),
+        };
+        match immediate.submit(1, QUERIES[0].into()) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not submit the search request: {error:?}"),
+        };
         assert_eq!(worker_result(&immediate, 1), expected[0]);
         let immediate_first = elapsed(start);
         trials.push(
@@ -64,14 +100,38 @@ fn search_preload_benchmark() {
         );
     }
     let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/search-preload.json");
-    std::fs::write(file, serde_json::to_vec_pretty(&trials).unwrap()).unwrap();
-    println!("{}", serde_json::to_string_pretty(&trials).unwrap());
+    match std::fs::write(
+        file,
+        match serde_json::to_vec_pretty(&trials) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not serialize the benchmark data: {error:?}"),
+        },
+    ) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
+    println!(
+        "{}",
+        match serde_json::to_string_pretty(&trials) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not serialize the benchmark data: {error:?}"),
+        }
+    );
 }
 
 fn fixture() -> (TempDir, Storage) {
-    let directory = TempDir::new().unwrap();
-    let storage = Storage::with_dir(directory.path()).unwrap();
-    let start = chrono::NaiveDate::from_ymd_opt(2025, 1, 1).unwrap();
+    let directory = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(directory.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
+    let start = match chrono::NaiveDate::from_ymd_opt(2025, 1, 1) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     let subjects = [
         "취업 준비",
         "새로운 프로젝트",
@@ -106,9 +166,15 @@ fn fixture() -> (TempDir, Storage) {
         );
         let source = if day % 2 == 0 { source.replace('\n', "\r\n") } else { source };
         if day % 7 == 0 {
-            std::fs::write(directory.path().join(format!("entries/{date}.md")), source).unwrap();
+            match std::fs::write(directory.path().join(format!("entries/{date}.md")), source) {
+                | Ok(_) => (),
+                | Err(error) => panic!("Could not write the file: {error:?}"),
+            };
         } else {
-            storage.save(date, &source).unwrap();
+            match storage.save(date, &source) {
+                | Ok(_) => (),
+                | Err(error) => panic!("Could not save the diary: {error:?}"),
+            };
         }
     }
     (directory, storage)
@@ -116,12 +182,17 @@ fn fixture() -> (TempDir, Storage) {
 
 fn elapsed(start: Instant) -> f64 { start.elapsed().as_secs_f64() * 1000.0 }
 
-// Frozen pre-optimization paths let a fresh checkout reproduce the control.
 fn baseline_refresh(index: &mut Index, storage: &Storage) {
-    let dates = storage.scan_entries().unwrap();
+    let dates = match storage.scan_entries() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+    };
     index.documents.retain(|date, _| dates.contains(date));
     for date in dates {
-        let entry = storage.load_entry(date).unwrap();
+        let entry = match storage.load_entry(date) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not load the diary entry: {error:?}"),
+        };
         if index.documents.get(&date).is_some_and(|doc| doc.content == entry.content) {
             continue;
         }
@@ -136,7 +207,10 @@ fn baseline_refresh(index: &mut Index, storage: &Storage) {
 }
 
 fn baseline_embed_documents(index: &mut Index) {
-    let model = index.model.as_mut().unwrap();
+    let model = match index.model.as_mut() {
+        | Some(value) => value,
+        | None => panic!("Expected model to be present"),
+    };
     for document in index.documents.values_mut() {
         for batch in document.passages.chunks_mut(32) {
             if batch.iter().all(|p| !p.vector.is_empty()) {
@@ -145,7 +219,10 @@ fn baseline_embed_documents(index: &mut Index) {
             let inputs: Vec<_> = batch.iter().map(|p| format!("passage: {}", p.text)).collect();
             index.embedding_calls += 1;
             index.embedded_passages += inputs.len();
-            let vectors = model.embed(inputs, Some(32)).unwrap();
+            let vectors = match model.embed(inputs, Some(32)) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not generate embeddings: {error:?}"),
+            };
             assert_eq!(vectors.len(), batch.len());
             for (passage, vector) in batch.iter_mut().zip(vectors) {
                 passage.vector = vector;
@@ -160,11 +237,17 @@ fn profile(index: &mut Index, storage: &Storage, query: &str, baseline: bool) ->
     if baseline {
         baseline_refresh(index, storage);
     } else {
-        index.refresh(storage).unwrap();
+        match index.refresh(storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
     }
     let refresh = elapsed(start);
     let start = Instant::now();
-    index.ensure_model().unwrap();
+    match index.ensure_model() {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not load the embedding model: {error:?}"),
+    };
     let model = elapsed(start);
     let calls = index.embedding_calls;
     let embedded = index.embedded_passages;
@@ -172,7 +255,10 @@ fn profile(index: &mut Index, storage: &Storage, query: &str, baseline: bool) ->
     if baseline {
         baseline_embed_documents(index);
     } else {
-        index.embed_documents().unwrap();
+        match index.embed_documents() {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not embed the diary passages: {error:?}"),
+        };
     }
     let documents = elapsed(start);
     let start = Instant::now();
@@ -181,10 +267,16 @@ fn profile(index: &mut Index, storage: &Storage, query: &str, baseline: bool) ->
     }
     let persist = elapsed(start);
     let start = Instant::now();
-    let vector = index.embed_query(query).unwrap();
+    let vector = match index.embed_query(query) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not embed the search query: {error:?}"),
+    };
     let query_ms = elapsed(start);
     let start = Instant::now();
-    let pattern = RegexBuilder::new(&regex::escape(query)).case_insensitive(true).build().unwrap();
+    let pattern = match RegexBuilder::new(&regex::escape(query)).case_insensitive(true).build() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not compile the search pattern: {error:?}"),
+    };
     let hits = rank(&index.documents, &pattern, Some(&vector));
     let ranking = elapsed(start);
     let total = elapsed(total);
@@ -194,7 +286,10 @@ fn profile(index: &mut Index, storage: &Storage, query: &str, baseline: bool) ->
             model.settings.keybindings = keybindings;
             model.screen = Screen::Search;
             model.search.results = vec![hit.clone()];
-            let command = diary_application::update(&mut model, Msg::SearchSubmit).unwrap();
+            let command = match diary_application::update(&mut model, Msg::SearchSubmit) {
+                | Some(value) => value,
+                | None => panic!("Expected the application update to produce a command"),
+            };
             let mut runtime = crate::Runtime::new(storage.clone(), None);
             runtime.execute(command, &mut model);
             assert!(!model.show_error_popup);
@@ -226,8 +321,14 @@ fn search_batch_sizes() {
     }
     let (_directory, storage) = fixture();
     let mut index = Index::default();
-    index.refresh(&storage).unwrap();
-    index.ensure_model().unwrap();
+    match index.refresh(&storage) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+    };
+    match index.ensure_model() {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not load the embedding model: {error:?}"),
+    };
     let mut inputs: Vec<_> = index
         .documents
         .values()
@@ -236,29 +337,56 @@ fn search_batch_sizes() {
         .collect();
     let original = inputs.clone();
     inputs.sort_by_key(|s| s.chars().count());
-    let model = index.model.as_mut().unwrap();
+    let model = match index.model.as_mut() {
+        | Some(value) => value,
+        | None => panic!("Expected model to be present"),
+    };
     let mut trials = Vec::new();
     for _ in 0 .. 3 {
         let start = Instant::now();
         for diary in original.chunks(3) {
-            let vectors = model.embed(diary, Some(32)).unwrap();
+            let vectors = match model.embed(diary, Some(32)) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not generate embeddings: {error:?}"),
+            };
             assert!(vectors.iter().all(|v| valid_vector(v)));
         }
         trials.push(json!({"kind":"per-diary","batch":3,"ms":elapsed(start)}));
         let start = Instant::now();
-        let vectors = model.embed(original.clone(), Some(32)).unwrap();
+        let vectors = match model.embed(original.clone(), Some(32)) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not generate embeddings: {error:?}"),
+        };
         assert!(vectors.iter().all(|v| valid_vector(v)));
         trials.push(json!({"kind":"mixed-length","batch":32,"ms":elapsed(start)}));
         for batch in [8, 16, 32] {
             let start = Instant::now();
-            let vectors = model.embed(inputs.clone(), Some(batch)).unwrap();
+            let vectors = match model.embed(inputs.clone(), Some(batch)) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not generate embeddings: {error:?}"),
+            };
             assert!(vectors.iter().all(|v| valid_vector(v)));
             trials.push(json!({"kind":"similar-length","batch":batch,"ms":elapsed(start)}));
         }
     }
     let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/search-batch-sizes.json");
-    std::fs::write(file, serde_json::to_vec_pretty(&trials).unwrap()).unwrap();
-    println!("{}", serde_json::to_string_pretty(&trials).unwrap());
+    match std::fs::write(
+        file,
+        match serde_json::to_vec_pretty(&trials) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not serialize the benchmark data: {error:?}"),
+        },
+    ) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
+    println!(
+        "{}",
+        match serde_json::to_string_pretty(&trials) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not serialize the benchmark data: {error:?}"),
+        }
+    );
 }
 
 #[test]
@@ -295,9 +423,18 @@ fn search_release_benchmark() {
         }
         measurements.push(json!({"scenario":"reopened", "metrics":reopened}));
         snapshots.push(snapshot(&hits));
-        let date = chrono::NaiveDate::from_ymd_opt(2025, 1, 2).unwrap();
-        let content = storage.load(date).unwrap();
-        storage.save(date, &format!("변경된 기록\n\n{content}")).unwrap();
+        let date = match chrono::NaiveDate::from_ymd_opt(2025, 1, 2) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        };
+        let content = match storage.load(date) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not load the diary: {error:?}"),
+        };
+        match storage.save(date, &format!("변경된 기록\n\n{content}")) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save the diary: {error:?}"),
+        };
         let (edited, hits) = profile(&mut index, &storage, QUERIES[0], baseline);
         assert_eq!(edited["embedded_passages"], 4);
         measurements.push(json!({"scenario":"edited", "metrics":edited}));
@@ -306,11 +443,30 @@ fn search_release_benchmark() {
     }
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target");
     if phase == "after" {
-        let baseline: Value = serde_json::from_slice(&std::fs::read(path.join("search-benchmark-before.json")).expect("run before phase first")).unwrap();
+        let baseline: Value = match serde_json::from_slice(&std::fs::read(path.join("search-benchmark-before.json")).expect("run before phase first")) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not parse the benchmark baseline: {error:?}"),
+        };
         assert_eq!(json!(snapshots), baseline["snapshots"], "result order, excerpts, or source positions changed");
     }
     let report = json!({"phase":phase,"diaries":80,"passages":240,"trials":trials,"snapshots":snapshots});
     let file = path.join(format!("search-benchmark-{phase}.json"));
-    std::fs::write(&file, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
-    println!("report: {}\n{}", file.display(), serde_json::to_string_pretty(&report["trials"]).unwrap());
+    match std::fs::write(
+        &file,
+        match serde_json::to_vec_pretty(&report) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not serialize the benchmark data: {error:?}"),
+        },
+    ) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
+    println!(
+        "report: {}\n{}",
+        file.display(),
+        match serde_json::to_string_pretty(&report["trials"]) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not serialize the benchmark data: {error:?}"),
+        }
+    );
 }

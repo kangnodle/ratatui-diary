@@ -1,4 +1,3 @@
-//! Terminal adapter and composition root for the diary workspace.
 pub mod app;
 pub mod calendar;
 pub mod editor;

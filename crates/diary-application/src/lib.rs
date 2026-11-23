@@ -1,5 +1,3 @@
-//! Deterministic state transitions. Commands describe effects; messages carry
-//! results.
 pub mod app;
 pub mod calendar;
 pub mod editor;

@@ -1,5 +1,3 @@
-//! Pure diary values, calendar rules and preferences. No I/O or UI
-//! dependencies.
 pub mod calendar;
 pub mod i18n;
 pub mod settings;

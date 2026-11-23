@@ -1,4 +1,3 @@
-//! Translate terminal events into framework-independent application input.
 use crossterm::event::{KeyCode as TerminalCode,
                        KeyEvent as TerminalKey,
                        KeyEventKind,

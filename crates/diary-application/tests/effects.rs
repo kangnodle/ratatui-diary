@@ -12,7 +12,12 @@ use diary_application::{Command,
                         settings::Keybindings,
                         update};
 
-fn date() -> NaiveDate { NaiveDate::from_ymd_opt(2026, 10, 19).unwrap() }
+fn date() -> NaiveDate {
+    match NaiveDate::from_ymd_opt(2026, 10, 19) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    }
+}
 fn model() -> Model { Model::new(date(), Default::default()) }
 
 #[test]
@@ -63,7 +68,10 @@ fn calendar_return_waits_for_save_and_requests_a_fresh_preview() {
     let command = update(&mut model, Msg::EditorCtrlXBack);
     assert!(matches!(command, Some(Command::SaveDiary(_, _))));
     assert_eq!(model.screen, Screen::Editor);
-    let unrelated = date().succ_opt().unwrap();
+    let unrelated = match date().succ_opt() {
+        | Some(value) => value,
+        | None => panic!("Expected a next day for the fixture date"),
+    };
     update(&mut model, Msg::SaveDiarySuccess(unrelated));
     assert!(model.editor_state.is_modified);
     assert_eq!(model.screen, Screen::Editor);
@@ -88,10 +96,16 @@ fn helix_write_quit_requests_a_save_even_when_the_document_is_clean() {
     model.screen = Screen::Editor;
     model.settings.keybindings = Keybindings::Helix;
     for ch in ":wq".chars() {
-        let message = handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE), &model).unwrap();
+        let message = match handle_key(KeyEvent::new(KeyCode::Char(ch), KeyModifiers::NONE), &model) {
+            | Some(value) => value,
+            | None => panic!("Expected a message for the test key"),
+        };
         assert!(update(&mut model, message).is_none());
     }
-    let message = handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE), &model).unwrap();
+    let message = match handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE), &model) {
+        | Some(value) => value,
+        | None => panic!("Expected a message for the test key"),
+    };
     assert!(matches!(update(&mut model, message), Some(Command::SaveDiary(_, _))));
     assert!(!model.should_quit);
     update(&mut model, Msg::SaveDiarySuccess(date()));

@@ -1,4 +1,3 @@
-//! Semantic UI colors shared by all screens and overlays.
 use diary_domain::settings::Theme;
 use ratatui::style::{Color,
                      Style};

@@ -1,5 +1,3 @@
-//! Pure application state and state-transition entry points.
-
 use crate::{calendar::state::CalendarState,
             editor::state::EditorState};
 use chrono::{Datelike,

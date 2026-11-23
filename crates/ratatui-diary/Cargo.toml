@@ -3,7 +3,6 @@
   edition.workspace = true
   version.workspace = true
 
-# Terminal presentation and composition root. Application policy lives inward.
 [dependencies]
   chrono              = { workspace = true, features = ["clock"] }
   crossterm           = { workspace = true }

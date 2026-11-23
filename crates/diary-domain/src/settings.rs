@@ -1,4 +1,3 @@
-//! Preferences and their deterministic text representation.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Language {
     #[default]

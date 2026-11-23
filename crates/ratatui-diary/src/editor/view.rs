@@ -1,5 +1,3 @@
-//! 에디터 화면 렌더링.
-
 use crate::{app::Model,
             editor::state::{EditorState,
                             EditorSubMode}};
@@ -18,10 +16,8 @@ use ratatui::{Frame,
                         Wrap}};
 use unicode_width::UnicodeWidthChar;
 
-/// 선택 영역 타입: ((시작 라인, 시작 컬럼), (끝 라인, 끝 컬럼))
 type SelectionRange = Option<((usize, usize), (usize, usize))>;
 
-/// 에디터 화면의 키바인딩 도움말 텍스트 생성
 pub fn build_editor_keybindings(state: &EditorState) -> String {
     match &state.submode {
         | None => crate::settings::Language::Korean.tr(crate::i18n::Text::EditorKeys).to_string(),
@@ -34,11 +30,9 @@ pub fn render(f: &mut Frame, model: &Model) {
     let palette = crate::theme::palette(model.settings.theme);
     let editor_chunks = screen_chunks(model, f.area());
 
-    // 헤더: 날짜
     let header = Paragraph::new(model.editor_state.date.to_string()).style(Style::default().add_modifier(Modifier::BOLD));
     f.render_widget(header, editor_chunks[0]);
 
-    // 커서 표시
     let display_width: usize = if model.editor_state.cursor_line < model.editor_state.content.len() {
         model.editor_state.content[model.editor_state.cursor_line]
             .chars()
@@ -90,7 +84,6 @@ pub fn render(f: &mut Frame, model: &Model) {
         ));
     }
 
-    // 오른쪽: 일기 미리보기
     let content = model.editor_state.get_content();
     render_diary_preview(f, editor_chunks[3], &content, model);
 }
@@ -163,7 +156,6 @@ fn render_diary_preview(f: &mut Frame, area: Rect, content: &str, model: &Model)
     f.render_widget(preview, area);
 }
 
-/// 에디터 내용을 스타일이 적용된 Line 벡터로 변환
 fn render_editor_content(editor_state: &EditorState, palette: crate::settings::Palette, area: Rect, scroll_x: usize, scroll_y: usize) -> Vec<Line<'static>> {
     let selection_range = editor_state.get_selection_range();
     let pattern_len = editor_state.search_pattern.chars().count();
@@ -228,7 +220,6 @@ fn render_editor_content(editor_state: &EditorState, palette: crate::settings::P
         .collect()
 }
 
-/// 문자의 스타일 결정 (선택 영역, 검색 매치 등)
 fn get_char_style(
     line: usize,
     col: usize,
@@ -253,7 +244,6 @@ fn get_char_style(
     }
 }
 
-/// 특정 위치가 선택 영역 내에 있는지 확인
 fn is_in_selection(line: usize, col: usize, selection_range: &SelectionRange) -> bool {
     if let Some(((start_line, start_col), (end_line, end_col))) = selection_range {
         if line < *start_line || line > *end_line {
@@ -274,13 +264,10 @@ fn is_in_selection(line: usize, col: usize, selection_range: &SelectionRange) ->
     }
 }
 
-/// 특정 위치가 검색 매치인지 확인
 fn is_search_match(line: usize, col: usize, matches: &[(usize, usize)], current_match_index: usize, pattern_len: usize) -> (bool, bool) {
     if pattern_len == 0 {
         return (false, false);
     }
-    // Search positions are sorted; choose the first overlapping match as
-    // before.
     let earliest = (line, col.saturating_sub(pattern_len - 1));
     let index = matches.partition_point(|position| *position < earliest);
     if let Some(&(match_line, match_col)) = matches.get(index)
@@ -292,9 +279,7 @@ fn is_search_match(line: usize, col: usize, matches: &[(usize, usize)], current_
     (false, false)
 }
 
-/// 상태바 텍스트 생성
 fn build_status_text(editor_state: &EditorState) -> String {
-    // Submode 표시
     let submode_text = match &editor_state.submode {
         | Some(EditorSubMode::CtrlX) => "-- C-x --",
         | Some(EditorSubMode::Search) => {
@@ -304,7 +289,6 @@ fn build_status_text(editor_state: &EditorState) -> String {
         | None => "-- EMACS --",
     };
 
-    // 검색 매치 정보 표시
     let search_info = if !editor_state.search_matches.is_empty() {
         format!(" | 검색: {}/{} 매치", editor_state.current_match_index + 1, editor_state.search_matches.len())
     } else {

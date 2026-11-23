@@ -27,7 +27,6 @@
   dependencies = ["format"]
 
 [tasks.dist]
-  # Windows 설치 파일 생성. 자세한 옵션은 scripts/release.ps1 참고.
   args    = ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/release.ps1"]
   command = "powershell"
 
@@ -37,7 +36,6 @@
   dependencies = ["format"]
 
 [tasks.watch-run]
-  # `cargo install cargo-watch`로 설치
   args          = ["watch", "-x", "run"]
   command       = "cargo"
   dependencies  = ["format"]

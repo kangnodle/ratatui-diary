@@ -1,5 +1,3 @@
-//! 달력 화면 렌더링.
-
 use crate::{app::Model,
             calendar::state::CalendarState};
 use ratatui::{Frame,
@@ -17,22 +15,16 @@ use ratatui::{Frame,
                         Paragraph,
                         Wrap}};
 
-/// 달력 화면의 키바인딩 도움말 텍스트 생성
 pub fn build_calendar_keybindings(_state: &CalendarState) -> String { crate::settings::Language::Korean.tr(crate::i18n::Text::CalendarKeys).to_string() }
 
 pub fn render(f: &mut Frame, model: &Model) {
     let lang = model.settings.language;
     let palette = crate::theme::palette(model.settings.theme);
-    // 메인 레이아웃: 수평 분할 (50:50)
     let main_chunks = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Percentage(50), // 왼쪽: 달력
-            Constraint::Percentage(50), // 오른쪽: 미리보기
-        ])
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(f.area());
 
-    // 상태바 - 동적 키바인딩
     let keybindings = if model.settings.keybindings == crate::settings::Keybindings::Helix {
         if model.editor_state.helix.prefix == Some(crate::editor::helix::Prefix::Command) {
             crate::editor::helix::help(&model.editor_state, lang).to_string()
@@ -59,17 +51,15 @@ pub fn render(f: &mut Frame, model: &Model) {
     };
     footer.lines.insert(0, Line::from(status));
 
-    // 왼쪽: 달력 영역 (기존 레이아웃)
     let calendar_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),                                                                     // 헤더
-            Constraint::Min(0),                                                                        // 달력
-            Constraint::Length((footer.height() as u16).min(main_chunks[0].height.saturating_sub(4))), // 상태바
+            Constraint::Length(3),
+            Constraint::Min(0),
+            Constraint::Length((footer.height() as u16).min(main_chunks[0].height.saturating_sub(4))),
         ])
         .split(main_chunks[0]);
 
-    // 헤더
     let header = Paragraph::new(match lang {
         | crate::settings::Language::Korean => format!("{}년 {}월", model.calendar_state.current_year, model.calendar_state.current_month),
         | crate::settings::Language::English => format!("{}-{:02}", model.calendar_state.current_year, model.calendar_state.current_month),
@@ -78,12 +68,10 @@ pub fn render(f: &mut Frame, model: &Model) {
     .style(Style::default().add_modifier(Modifier::BOLD));
     f.render_widget(header, calendar_chunks[0]);
 
-    // 달력 그리드
     render_calendar_grid(f, calendar_chunks[1], model);
 
     f.render_widget(Paragraph::new(footer), calendar_chunks[2]);
 
-    // 오른쪽: 미리보기 영역
     let selected_date = model.calendar_state.selected_date;
     let entry = model.preview.as_ref().filter(|(date, _)| *date == selected_date).map(|(_, entry)| entry);
     let preview_content = entry.map_or_else(|| lang.tr(crate::i18n::Text::EmptyDiary), |entry| entry.content.as_str());
@@ -124,7 +112,6 @@ fn render_calendar_grid(f: &mut Frame, area: Rect, model: &Model) {
     let year = model.calendar_state.current_year;
     let month = model.calendar_state.current_month;
 
-    // 요일 헤더
     let weekdays = match model.settings.language {
         | crate::settings::Language::Korean => ["일", "월", "화", "수", "목", "금", "토"],
         | crate::settings::Language::English => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -139,14 +126,12 @@ fn render_calendar_grid(f: &mut Frame, area: Rect, model: &Model) {
             .collect::<Vec<_>>(),
     )];
 
-    // 월의 첫날
     let first_day = match NaiveDate::from_ymd_opt(year, month, 1) {
         | Some(date) => date,
         | None => return,
     };
     let weekday = first_day.weekday().num_days_from_sunday() as usize;
 
-    // 달력 생성
     let next_month_first = match first_day.with_month(month + 1) {
         | Some(date) => date,
         | None => match first_day.with_year(year + 1) {
@@ -165,7 +150,6 @@ fn render_calendar_grid(f: &mut Frame, area: Rect, model: &Model) {
     let mut week = vec![Span::raw("    "); 7];
     let mut day = 1;
 
-    // 첫 주 빈 칸 채우기
     for slot in week.iter_mut().take(7).skip(weekday) {
         match NaiveDate::from_ymd_opt(year, month, day) {
             | Some(date) => {
@@ -177,7 +161,6 @@ fn render_calendar_grid(f: &mut Frame, area: Rect, model: &Model) {
     }
     lines.push(Line::from(week.clone()));
 
-    // 나머지 주
     while day <= days_in_month {
         week = vec![Span::raw("    "); 7];
         for slot in week.iter_mut().take(7) {

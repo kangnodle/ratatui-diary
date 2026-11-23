@@ -14,12 +14,22 @@ fn preferences_round_trip_without_a_filesystem() {
                     theme,
                     keybindings,
                 };
-                assert_eq!(Settings::parse(&settings.serialize()).unwrap(), settings);
+                assert_eq!(
+                    match Settings::parse(&settings.serialize()) {
+                        | Ok(value) => value,
+                        | Err(error) => panic!("Could not parse the settings: {error:?}"),
+                    },
+                    settings
+                );
             }
         }
     }
     assert_eq!(
-        Settings::parse("# old config\nlanguage=en\ntheme=dark\n").unwrap().keybindings,
+        (match Settings::parse("# old config\nlanguage=en\ntheme=dark\n") {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not parse the settings: {error:?}"),
+        })
+        .keybindings,
         Keybindings::Emacs
     );
     for source in ["theme=invalid", "language=kr", "keybindings=vim", "missing-equals", "unknown=value"] {

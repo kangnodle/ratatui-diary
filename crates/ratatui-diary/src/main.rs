@@ -24,7 +24,6 @@ fn main() -> std::io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
     terminal.clear()?;
 
-    // 이벤트 루프
     let result = run_app(
         &mut model,
         &mut runtime,
@@ -41,7 +40,6 @@ fn main() -> std::io::Result<()> {
         Runtime::preload_search_model,
     );
 
-    // Terminal 복원
     disable_raw_mode()?;
     execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
     terminal.show_cursor()?;
@@ -49,8 +47,6 @@ fn main() -> std::io::Result<()> {
     result
 }
 
-// Rendering and terminal input stay at the shell; tests supply in-memory
-// drivers.
 fn run_app(
     model: &mut Model,
     runtime: &mut Runtime,
@@ -112,15 +108,24 @@ mod tests {
     #[test]
     fn preload_is_scheduled_once_after_first_frame_and_does_not_add_redraws() {
         use std::cell::Cell;
-        let directory = TempDir::new().unwrap();
-        let mut runtime = Runtime::new(Storage::with_dir(directory.path()).unwrap(), None);
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let mut runtime = Runtime::new(
+            match Storage::with_dir(directory.path()) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+            },
+            None,
+        );
         let date = NaiveDate::default();
         let mut model = Model::new(date, Default::default());
         let frames = Cell::new(0);
         let preloads = Cell::new(0);
         let settings = Some(Event::Key(KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE)));
         let mut events = [None, settings.clone(), Some(Event::Resize(80, 24)), settings, quit()].into_iter();
-        run_app(
+        match run_app(
             &mut model,
             &mut runtime,
             |_| {
@@ -129,15 +134,20 @@ mod tests {
             },
             |_| {
                 assert_eq!(preloads.get(), 1);
-                Ok(events.next().unwrap())
+                Ok(match events.next() {
+                    | Some(value) => value,
+                    | None => panic!("Expected another item in the test input"),
+                })
             },
             || date,
             |_| {
                 assert_eq!(frames.get(), 1);
                 preloads.set(preloads.get() + 1);
             },
-        )
-        .unwrap();
+        ) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not run the application event loop: {error:?}"),
+        };
         assert_eq!(preloads.get(), 1);
         assert_eq!(frames.get(), 4);
     }
@@ -155,13 +165,28 @@ mod tests {
         let mut report = String::from("preload,first_frame_ms,schedule_ms,input_median_ms,input_p95_ms,input_max_ms,draw_max_ms,quit_ms,frames\n");
         for _ in 0 .. 3 {
             for enabled in [false, true] {
-                let directory = TempDir::new().unwrap();
-                let storage = Storage::with_dir(directory.path()).unwrap();
+                let directory = match TempDir::new() {
+                    | Ok(value) => value,
+                    | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+                };
+                let storage = match Storage::with_dir(directory.path()) {
+                    | Ok(value) => value,
+                    | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+                };
                 let start = Instant::now();
-                let mut model = Model::new(NaiveDate::default(), storage.scan_entries().unwrap());
+                let mut model = Model::new(
+                    NaiveDate::default(),
+                    match storage.scan_entries() {
+                        | Ok(value) => value,
+                        | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+                    },
+                );
                 let mut runtime = Runtime::new(storage, None);
                 runtime.execute(diary_application::Command::LoadPreview(model.today), &mut model);
-                let mut terminal = Terminal::new(TestBackend::new(100, 28)).unwrap();
+                let mut terminal = match Terminal::new(TestBackend::new(100, 28)) {
+                    | Ok(value) => value,
+                    | Err(never) => match never {},
+                };
                 let first = Cell::new(None);
                 let scheduled = Cell::new(false);
                 let schedule_ms = Cell::new(0.0);
@@ -181,12 +206,15 @@ mod tests {
                     quit(),
                 ]);
                 let mut events = events.into_iter();
-                run_app(
+                match run_app(
                     &mut model,
                     &mut runtime,
                     |model| {
                         let draw = Instant::now();
-                        terminal.draw(|frame| app::view(frame, model)).unwrap();
+                        match terminal.draw(|frame| app::view(frame, model)) {
+                            | Ok(_) => (),
+                            | Err(never) => match never {},
+                        };
                         draws.borrow_mut().push(draw.elapsed().as_secs_f64() * 1000.0);
                         if first.get().is_none() {
                             assert!(!scheduled.get());
@@ -212,30 +240,49 @@ mod tests {
                         schedule_ms.set(schedule.elapsed().as_secs_f64() * 1000.0);
                         scheduled.set(true);
                     },
-                )
-                .unwrap();
-                let quit_ms = pending_input.take().unwrap().elapsed().as_secs_f64() * 1000.0;
+                ) {
+                    | Ok(_) => (),
+                    | Err(error) => panic!("Could not run the application event loop: {error:?}"),
+                };
+                let quit_start = match pending_input.take() {
+                    | Some(start) => start,
+                    | None => panic!("Expected a pending input timestamp"),
+                };
+                let quit_ms = quit_start.elapsed().as_secs_f64() * 1000.0;
                 assert!(model.should_quit);
-                assert_eq!(runtime.storage.load(model.today).unwrap(), "한");
+                assert_eq!(
+                    match runtime.storage.load(model.today) {
+                        | Ok(value) => value,
+                        | Err(error) => panic!("Could not load the diary: {error:?}"),
+                    },
+                    "한"
+                );
                 let mut latencies = latencies.into_inner();
                 latencies.sort_by(f64::total_cmp);
                 let median = latencies[latencies.len() / 2];
                 let p95 = latencies[latencies.len() * 95 / 100];
-                let maximum = *latencies.last().unwrap();
+                let maximum = match latencies.last() {
+                    | Some(&latency) => latency,
+                    | None => panic!("Expected at least one item in the test output"),
+                };
                 assert!(maximum < 100.0, "input delayed {maximum} ms");
                 let draws = draws.into_inner();
                 let draw_max = draws.iter().copied().fold(0.0, f64::max);
                 report.push_str(&format!(
                     "{enabled},{},{},{median},{p95},{maximum},{draw_max},{quit_ms},{}\n",
-                    first.get().unwrap(),
+                    match first.get() {
+                        | Some(value) => value,
+                        | None => panic!("Expected the first frame timing to be recorded"),
+                    },
                     schedule_ms.get(),
                     draws.len()
                 ));
-                // Drain through search after measuring quit, so native loading
-                // from one trial cannot overlap the next.
                 app::update(&mut model, ratatui_diary::Msg::OpenSearch);
                 app::update(&mut model, ratatui_diary::Msg::SearchChar('한'));
-                let command = app::update(&mut model, ratatui_diary::Msg::SearchSubmit).unwrap();
+                let command = match app::update(&mut model, ratatui_diary::Msg::SearchSubmit) {
+                    | Some(value) => value,
+                    | None => panic!("Expected the application update to produce a command"),
+                };
                 runtime.execute(command, &mut model);
                 let deadline = Instant::now() + Duration::from_secs(30);
                 while model.search.busy && Instant::now() < deadline {
@@ -248,21 +295,33 @@ mod tests {
             }
         }
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/preload-tui.csv");
-        std::fs::write(path, &report).unwrap();
+        match std::fs::write(path, &report) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not write the file: {error:?}"),
+        };
         println!("{report}");
     }
 
     #[test]
     fn idle_polls_and_released_keys_do_not_redraw_but_settings_and_resize_do() {
-        let directory = TempDir::new().unwrap();
-        let mut runtime = Runtime::new(Storage::with_dir(directory.path()).unwrap(), None);
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let mut runtime = Runtime::new(
+            match Storage::with_dir(directory.path()) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+            },
+            None,
+        );
         let date = NaiveDate::default();
         let mut model = Model::new(date, Default::default());
         let settings = Some(Event::Key(KeyEvent::new(KeyCode::F(2), KeyModifiers::NONE)));
         let release = Some(Event::Key(KeyEvent::new_with_kind(KeyCode::F(2), KeyModifiers::NONE, KeyEventKind::Release)));
         let mut events = [None, None, settings.clone(), release, None, settings, Some(Event::Resize(100, 30)), quit()].into_iter();
         let mut frames = Vec::new();
-        run_app(
+        match run_app(
             &mut model,
             &mut runtime,
             |model| {
@@ -272,23 +331,37 @@ mod tests {
             |_| Ok(events.next().expect("unexpected poll")),
             || date,
             |_| {},
-        )
-        .unwrap();
+        ) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not run the application event loop: {error:?}"),
+        };
         assert_eq!(frames, [false, true, false, false]);
         assert!(model.should_quit);
     }
 
     #[test]
     fn an_idle_app_still_updates_the_date_when_midnight_passes() {
-        let directory = TempDir::new().unwrap();
-        let mut runtime = Runtime::new(Storage::with_dir(directory.path()).unwrap(), None);
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let mut runtime = Runtime::new(
+            match Storage::with_dir(directory.path()) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+            },
+            None,
+        );
         let date = NaiveDate::default();
-        let tomorrow = date.succ_opt().unwrap();
+        let tomorrow = match date.succ_opt() {
+            | Some(value) => value,
+            | None => panic!("Expected a next day for the fixture date"),
+        };
         let mut model = Model::new(date, Default::default());
         let mut dates = [date, tomorrow, tomorrow].into_iter();
         let mut events = [None, None, quit()].into_iter();
         let mut frames = Vec::new();
-        run_app(
+        match run_app(
             &mut model,
             &mut runtime,
             |model| {
@@ -296,10 +369,15 @@ mod tests {
                 Ok(())
             },
             |_| Ok(events.next().expect("unexpected poll")),
-            || dates.next().unwrap(),
+            || match dates.next() {
+                | Some(value) => value,
+                | None => panic!("Expected another item in the test input"),
+            },
             |_| {},
-        )
-        .unwrap();
+        ) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not run the application event loop: {error:?}"),
+        };
         assert_eq!(frames, [date, tomorrow]);
         assert_eq!(model.calendar_state.selected_date, date);
     }

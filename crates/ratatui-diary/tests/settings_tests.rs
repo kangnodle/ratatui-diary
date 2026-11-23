@@ -17,7 +17,13 @@ use ratatui_diary::{Msg,
 use tempfile::TempDir;
 
 fn model(dir: &TempDir) -> TestApp {
-    let mut model = TestApp::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
+    let mut model = TestApp::new(
+        Default::default(),
+        match Storage::with_dir(dir.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        },
+    );
     model.runtime.settings_path = Some(dir.path().join("config/settings.conf"));
     model
 }
@@ -29,8 +35,14 @@ fn press(model: &mut TestApp, code: KeyCode) {
     }
 }
 fn rendered(model: &TestApp, width: u16, height: u16) -> (String, ratatui::buffer::Buffer) {
-    let mut terminal = Terminal::new(TestBackend::new(width, height)).unwrap();
-    terminal.draw(|f| app::view(f, model)).unwrap();
+    let mut terminal = match Terminal::new(TestBackend::new(width, height)) {
+        | Ok(value) => value,
+        | Err(never) => match never {},
+    };
+    match terminal.draw(|f| app::view(f, model)) {
+        | Ok(_) => (),
+        | Err(never) => match never {},
+    };
     let buffer = terminal.backend().buffer().clone();
     let mut text = String::new();
     for y in 0 .. height {
@@ -47,9 +59,18 @@ fn rendered(model: &TestApp, width: u16, height: u16) -> (String, ratatui::buffe
 
 #[test]
 fn preferences_round_trip_and_validate() {
-    let dir = TempDir::new().unwrap();
+    let dir = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
     let path = dir.path().join("nested/settings.conf");
-    assert_eq!(diary_storage::settings::load(&path).unwrap(), Settings::default());
+    assert_eq!(
+        match diary_storage::settings::load(&path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not load settings: {error:?}"),
+        },
+        Settings::default()
+    );
     for language in [Language::Korean, Language::English] {
         for theme in [Theme::System, Theme::Dark, Theme::Light] {
             let settings = Settings {
@@ -57,17 +78,32 @@ fn preferences_round_trip_and_validate() {
                 theme,
                 ..Default::default()
             };
-            diary_storage::settings::save(settings, &path).unwrap();
-            assert_eq!(diary_storage::settings::load(&path).unwrap(), settings);
+            match diary_storage::settings::save(settings, &path) {
+                | Ok(_) => (),
+                | Err(error) => panic!("Could not save settings: {error:?}"),
+            };
+            assert_eq!(
+                match diary_storage::settings::load(&path) {
+                    | Ok(value) => value,
+                    | Err(error) => panic!("Could not load settings: {error:?}"),
+                },
+                settings
+            );
         }
     }
-    std::fs::write(&path, "theme=invalid").unwrap();
+    match std::fs::write(&path, "theme=invalid") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
     assert_eq!(diary_storage::settings::load(&path).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
 }
 
 #[test]
 fn popup_changes_save_immediately_and_preserve_editor_state() {
-    let dir = TempDir::new().unwrap();
+    let dir = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
     let mut model = model(&dir);
     model.screen = Screen::Editor;
     model.editor_state.load_content("한글 diary");
@@ -83,7 +119,13 @@ fn popup_changes_save_immediately_and_preserve_editor_state() {
         press(&mut model, KeyCode::Right);
         assert_eq!(model.settings.theme, theme);
         assert_eq!(
-            diary_storage::settings::load(model.runtime.settings_path.as_deref().unwrap()).unwrap(),
+            match diary_storage::settings::load(match model.runtime.settings_path.as_deref() {
+                | Some(value) => value,
+                | None => panic!("Expected settings path to be present"),
+            }) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load settings: {error:?}"),
+            },
             model.settings
         );
     }
@@ -96,7 +138,10 @@ fn popup_changes_save_immediately_and_preserve_editor_state() {
 
 #[test]
 fn every_language_and_theme_renders_screens_and_overlays() {
-    let dir = TempDir::new().unwrap();
+    let dir = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
     let mut model = model(&dir);
     model.editor_state.load_content("* 한글 diary\nhello");
     for language in [Language::Korean, Language::English] {
@@ -136,14 +181,26 @@ fn every_language_and_theme_renders_screens_and_overlays() {
 #[test]
 fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
     for legacy in [false, true] {
-        let dir = TempDir::new().unwrap();
+        let dir = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
         let mut model = model(&dir);
-        let date = chrono::NaiveDate::from_ymd_opt(2026, 10, 19).unwrap();
+        let date = match chrono::NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        };
         if legacy {
-            std::fs::write(dir.path().join("entries/2026-10-19.md"), "# Existing diary").unwrap();
+            match std::fs::write(dir.path().join("entries/2026-10-19.md"), "# Existing diary") {
+                | Ok(_) => (),
+                | Err(error) => panic!("Could not write the file: {error:?}"),
+            };
         }
         model.calendar_state.selected_date = date;
-        let command = app::update(&mut model, Msg::CalendarSelectDate).unwrap();
+        let command = match app::update(&mut model, Msg::CalendarSelectDate) {
+            | Some(value) => value,
+            | None => panic!("Expected the application update to produce a command"),
+        };
         crate::common::execute_command(command, &mut model);
         assert_eq!(model.screen, Screen::Editor);
         assert_eq!(model.editor_state.get_content(), if legacy { "# Existing diary" } else { "" });
@@ -169,26 +226,38 @@ fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
         }
 
         app::update(&mut model, Msg::EditorEnterCtrlXMode);
-        let command = app::update(&mut model, Msg::EditorCtrlXSave).unwrap();
+        let command = match app::update(&mut model, Msg::EditorCtrlXSave) {
+            | Some(value) => value,
+            | None => panic!("Expected the application update to produce a command"),
+        };
         crate::common::execute_command(command, &mut model);
         assert!(!model.editor_state.is_modified);
         assert!(!model.show_error_popup);
         let extension = if legacy { "md" } else { "org" };
         assert_eq!(
-            std::fs::read_to_string(dir.path().join(format!("entries/{date}.{extension}"))).unwrap(),
+            match std::fs::read_to_string(dir.path().join(format!("entries/{date}.{extension}"))) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not read the text file: {error:?}"),
+            },
             content
         );
         assert!(model.diary_entries.entries.contains(&date));
 
         app::update(&mut model, Msg::EditorEnterCtrlXMode);
-        let command = app::update(&mut model, Msg::EditorCtrlXBack).unwrap();
+        let command = match app::update(&mut model, Msg::EditorCtrlXBack) {
+            | Some(value) => value,
+            | None => panic!("Expected the application update to produce a command"),
+        };
         crate::common::execute_command(command, &mut model);
         assert_eq!(model.screen, Screen::Calendar);
         let (text, _) = rendered(&model, 160, 30);
         assert_eq!(text.contains("◉ Today"), !legacy);
         assert_eq!(text.contains("○ Lessons"), !legacy);
         assert!(text.contains("Diary body"));
-        let command = app::update(&mut model, Msg::CalendarSelectDate).unwrap();
+        let command = match app::update(&mut model, Msg::CalendarSelectDate) {
+            | Some(value) => value,
+            | None => panic!("Expected the application update to produce a command"),
+        };
         crate::common::execute_command(command, &mut model);
         assert_eq!(model.editor_state.get_content(), content);
     }
@@ -196,16 +265,25 @@ fn org_and_legacy_markdown_keep_their_format_through_edit_save_and_preview() {
 
 #[test]
 fn save_failure_is_visible_and_error_popup_blocks_input() {
-    let dir = TempDir::new().unwrap();
+    let dir = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
     let mut model = model(&dir);
     model.settings.language = Language::English;
-    model.runtime.settings_path = Some(dir.path().to_path_buf()); // Writing to a directory fails.
+    model.runtime.settings_path = Some(dir.path().to_path_buf());
     model.screen = Screen::Editor;
     press(&mut model, KeyCode::F(2));
     press(&mut model, KeyCode::Tab);
     press(&mut model, KeyCode::Right);
     assert!(model.show_error_popup);
-    assert!(model.error_message.as_ref().unwrap().contains("Failed to save settings"));
+    assert!(
+        (match model.error_message.as_ref() {
+            | Some(value) => value,
+            | None => panic!("Expected error message to be present"),
+        })
+        .contains("Failed to save settings")
+    );
     press(&mut model, KeyCode::Char('x'));
     assert_eq!(model.editor_state.get_content(), "");
     assert!(rendered(&model, 160, 30).0.contains("Error"));

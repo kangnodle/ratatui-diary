@@ -1,5 +1,3 @@
-//! 에디터 화면의 키 입력 → 메시지 매핑 (Emacs 스타일).
-
 use crate::{editor::state::{EditorState,
                             EditorSubMode},
             input::{KeyCode,
@@ -13,7 +11,7 @@ pub fn handle_key(key: KeyEvent, state: &EditorState) -> Option<Msg> {
     let alt = mods == KeyModifiers::ALT;
     let text = mods.is_empty() || mods == KeyModifiers::SHIFT;
     match &state.submode {
-        | Some(EditorSubMode::CtrlX) => return None, // App dispatcher handles the shared prefix.
+        | Some(EditorSubMode::CtrlX) => return None,
         | Some(EditorSubMode::Search) => {
             return match key.code {
                 | KeyCode::Char('s') if control => Some(Msg::EditorSearchNext),

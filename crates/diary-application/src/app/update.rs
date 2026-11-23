@@ -1,10 +1,3 @@
-//! 최상위 메시지 디스패처.
-//!
-//! 앱 전역 메시지(종료, 에러, 파일 I/O 결과)는 여기서 직접 처리하고,
-//! 그 외 화면별 메시지는 현재 [`Screen`]에 따라 기능 모듈로 위임한다.
-//! 위임 대상 메시지는 모두 해당 화면에서만 의미가 있으므로(원래 각 처리부가
-//! 화면 가드를 갖고 있었다) 화면 기준 라우팅이 동작을 보존한다.
-
 use crate::{app::{Model,
                   Screen},
             calendar,
@@ -124,7 +117,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             None
         },
 
-        // ===== 파일 I/O 결과 =====
         | Msg::LoadDiarySuccess(date, content, format) => {
             if model.screen == Screen::Editor {
                 let target = match model.search.target.take() {
@@ -204,7 +196,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
 
         | Msg::HelixKey(key) => editor::helix::update(key, model),
 
-        // ===== 화면별 메시지 위임 =====
         | other => match model.screen {
             | Screen::Calendar => calendar::update::update(model, other),
             | Screen::Editor => editor::update::update(model, other),

@@ -5,8 +5,6 @@ use ratatui::text::{Line,
 use unicode_width::{UnicodeWidthChar,
                     UnicodeWidthStr};
 
-/// Existing localized help uses `key:description`, separated by pipes or
-/// newlines.
 pub(crate) fn build(help: &str, width: u16, palette: Palette) -> Text<'static> {
     let pairs: Vec<_> = help
         .split(['|', '\n'])
@@ -56,13 +54,16 @@ fn wrap(text: &str, width: usize) -> Vec<String> {
     for ch in text.chars() {
         let char_width = ch.width().unwrap_or(0);
         if used + char_width > width && used > 0 {
-            let line = lines.last_mut().unwrap();
-            let rest = if let Some(space) = line.rfind(' ') {
-                let rest = line.split_off(space + 1);
-                line.pop();
-                rest
-            } else {
-                String::new()
+            let rest = match lines.last_mut() {
+                | Some(line) => match line.rfind(' ') {
+                    | Some(space) => {
+                        let rest = line.split_off(space + 1);
+                        line.pop();
+                        rest
+                    },
+                    | None => String::new(),
+                },
+                | None => String::new(),
             };
             used = rest.width();
             lines.push(rest);
@@ -70,7 +71,10 @@ fn wrap(text: &str, width: usize) -> Vec<String> {
         if ch == ' ' && used == 0 {
             continue;
         }
-        lines.last_mut().unwrap().push(ch);
+        match lines.last_mut() {
+            | Some(line) => line.push(ch),
+            | None => lines.push(ch.to_string()),
+        }
         used += char_width;
     }
     lines

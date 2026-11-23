@@ -1,7 +1,6 @@
 use chrono::NaiveDate;
 use std::ops::{Deref,
                DerefMut};
-// 텍스트 에디터 엔진의 타입을 그대로 재노출 (기존 경로 호환)
 pub use text_editor::Selection;
 use text_editor::TextEditor;
 
@@ -11,11 +10,6 @@ pub enum EditorSubMode {
     Search,
 }
 
-/// 다이어리 화면의 에디터 상태.
-///
-/// 범용 텍스트 편집 기능은 [`TextEditor`] 엔진에 위임하고
-/// (`Deref`/`DerefMut`로 투명하게 노출), 다이어리 고유의 상태인
-/// 편집 대상 날짜와 키 서브모드만 직접 보유한다.
 pub struct EditorState {
     pub helix: super::helix::HelixState,
     pub viewport_height: usize,

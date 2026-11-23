@@ -5,11 +5,15 @@ use diary_application::{Model,
                                 Screen}};
 use std::collections::HashSet;
 
-// ===== 달력 네비게이션 테스트 =====
-
 #[test]
 fn test_calendar_move_navigation() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
 
     let original_date = model.calendar_state.selected_date;
 
@@ -22,7 +26,13 @@ fn test_calendar_move_navigation() {
 
 #[test]
 fn test_calendar_select_date_switches_to_editor() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
 
     let cmd = diary_application::update::update(&mut model, Msg::CalendarSelectDate);
 
@@ -32,7 +42,13 @@ fn test_calendar_select_date_switches_to_editor() {
 
 #[test]
 fn test_calendar_month_navigation() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     let original_month = model.calendar_state.current_month;
 
     diary_application::update::update(&mut model, Msg::CalendarNextMonth);
@@ -42,7 +58,13 @@ fn test_calendar_month_navigation() {
 
 #[test]
 fn test_calendar_prev_month() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     let original_month = model.calendar_state.current_month;
 
     diary_application::update::update(&mut model, Msg::CalendarPrevMonth);
@@ -50,11 +72,15 @@ fn test_calendar_prev_month() {
     assert_eq!(model.calendar_state.current_month, expected);
 }
 
-// ===== 에디터 네비게이션 테스트 =====
-
 #[test]
 fn test_editor_basic_movement() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello world".to_string(), "test".to_string()];
     model.editor_state.cursor_line = 0;
@@ -69,7 +95,13 @@ fn test_editor_basic_movement() {
 
 #[test]
 fn test_editor_word_movement() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello world test".to_string()];
     model.editor_state.cursor_col = 0;
@@ -78,11 +110,15 @@ fn test_editor_word_movement() {
     assert!(model.editor_state.cursor_col > 0);
 }
 
-// ===== 에디터 점프 테스트 (Goto 모드 없이 직접 호출) =====
-
 #[test]
 fn test_editor_goto_doc_start() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["line1".to_string(), "line2".to_string(), "line3".to_string()];
     model.editor_state.cursor_line = 2;
@@ -95,7 +131,13 @@ fn test_editor_goto_doc_start() {
 
 #[test]
 fn test_editor_goto_line_end() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello world".to_string()];
     model.editor_state.cursor_col = 0;
@@ -104,11 +146,15 @@ fn test_editor_goto_line_end() {
     assert_eq!(model.editor_state.cursor_col, "hello world".len());
 }
 
-// ===== 에디터 문자 입력 테스트 (항상 활성) =====
-
 #[test]
 fn test_editor_insert_char() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
 
     diary_application::update::update(&mut model, Msg::EditorInsertChar('a'));
@@ -118,17 +164,21 @@ fn test_editor_insert_char() {
 
 #[test]
 fn test_editor_open_line() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
 
-    // "Hello"를 입력한 뒤 커서를 중간(2)에 놓고 open-line
     model.editor_state.content = vec!["Hello".to_string()];
     model.editor_state.cursor_line = 0;
     model.editor_state.cursor_col = 2;
 
     diary_application::update::update(&mut model, Msg::EditorOpenLine);
 
-    // 줄이 분할되고 커서는 원래 위치에 유지
     assert_eq!(model.editor_state.content.len(), 2);
     assert_eq!(model.editor_state.content[0], "He");
     assert_eq!(model.editor_state.content[1], "llo");
@@ -136,11 +186,15 @@ fn test_editor_open_line() {
     assert_eq!(model.editor_state.cursor_col, 2);
 }
 
-// ===== 에디터 Selection 테스트 =====
-
 #[test]
 fn test_editor_toggle_selection() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
 
     diary_application::update::update(&mut model, Msg::EditorToggleSelection);
@@ -152,37 +206,54 @@ fn test_editor_toggle_selection() {
 
 #[test]
 fn test_editor_select_line() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello".to_string()];
 
     diary_application::update::update(&mut model, Msg::EditorSelectLine);
     assert!(model.editor_state.selection.is_some());
-    let sel = model.editor_state.selection.as_ref().unwrap();
+    let sel = match model.editor_state.selection.as_ref() {
+        | Some(value) => value,
+        | None => panic!("Expected selection to be present"),
+    };
     assert_eq!(sel.anchor_col, 0);
     assert_eq!(sel.cursor_col, 5);
 }
 
-// ===== 에디터 편집 기능 테스트 =====
-
 #[test]
 fn test_editor_delete_with_selection() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello world".to_string()];
     model.editor_state.cursor_col = 0;
 
-    // 먼저 줄 선택
     diary_application::update::update(&mut model, Msg::EditorSelectLine);
     diary_application::update::update(&mut model, Msg::EditorDelete);
 
-    // Selection이 삭제 후 해제됨
     assert!(model.editor_state.selection.is_none());
 }
 
 #[test]
 fn test_editor_delete_forward() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello".to_string()];
     model.editor_state.cursor_col = 0;
@@ -193,7 +264,13 @@ fn test_editor_delete_forward() {
 
 #[test]
 fn test_editor_kill_line() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello world".to_string()];
     model.editor_state.cursor_col = 5;
@@ -205,7 +282,13 @@ fn test_editor_kill_line() {
 
 #[test]
 fn test_editor_yank_and_paste() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello".to_string()];
 
@@ -217,7 +300,13 @@ fn test_editor_yank_and_paste() {
 
 #[test]
 fn test_editor_paste() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["Hello".to_string()];
     model.editor_state.clipboard = "World".to_string();
@@ -228,30 +317,35 @@ fn test_editor_paste() {
     assert!(model.editor_state.content[0].contains("World"));
 }
 
-// ===== 에디터 Undo/Redo 테스트 =====
-
 #[test]
 fn test_editor_undo_redo() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
 
-    // 변경
     diary_application::update::update(&mut model, Msg::EditorInsertChar('a'));
     let content_after = model.editor_state.content.clone();
 
-    // Undo
     diary_application::update::update(&mut model, Msg::EditorUndo);
 
-    // Redo
     diary_application::update::update(&mut model, Msg::EditorRedo);
     assert_eq!(model.editor_state.content, content_after);
 }
 
-// ===== 에디터 검색 테스트 =====
-
 #[test]
 fn test_editor_search_mode() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
 
     diary_application::update::update(&mut model, Msg::EditorEnterSearchMode);
@@ -260,7 +354,13 @@ fn test_editor_search_mode() {
 
 #[test]
 fn test_editor_search_execution() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.content = vec!["hello world".to_string(), "hello test".to_string()];
     model.editor_state.submode = Some(EditorSubMode::Search);
@@ -270,11 +370,15 @@ fn test_editor_search_execution() {
     assert!(!model.editor_state.search_matches.is_empty());
 }
 
-// ===== 에디터 Ctrl+X 명령 테스트 =====
-
 #[test]
 fn test_editor_ctrl_x_mode() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
 
     diary_application::update::update(&mut model, Msg::EditorEnterCtrlXMode);
@@ -283,7 +387,13 @@ fn test_editor_ctrl_x_mode() {
 
 #[test]
 fn test_editor_ctrl_x_save() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.submode = Some(EditorSubMode::CtrlX);
     model.editor_state.content = vec!["test".to_string()];
@@ -295,20 +405,33 @@ fn test_editor_ctrl_x_save() {
 
 #[test]
 fn test_editor_ctrl_x_back() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.submode = Some(EditorSubMode::CtrlX);
 
-    let command = diary_application::update::update(&mut model, Msg::EditorCtrlXBack).unwrap();
+    let command = match diary_application::update::update(&mut model, Msg::EditorCtrlXBack) {
+        | Some(value) => value,
+        | None => panic!("Expected the application update to produce a command"),
+    };
     assert!(matches!(command, diary_application::Command::LoadPreview(_)));
     assert_eq!(model.screen, Screen::Calendar);
 }
 
-// ===== 파일 I/O 결과 테스트 =====
-
 #[test]
 fn test_load_diary_success() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
 
     let date = model.editor_state.date;
@@ -321,7 +444,13 @@ fn test_load_diary_success() {
 
 #[test]
 fn test_save_diary_success() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.screen = Screen::Editor;
     model.editor_state.is_modified = true;
 
@@ -332,7 +461,13 @@ fn test_save_diary_success() {
 
 #[test]
 fn test_dismiss_error() {
-    let mut model = Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new());
+    let mut model = Model::new(
+        match NaiveDate::from_ymd_opt(2026, 10, 19) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        },
+        HashSet::new(),
+    );
     model.show_error_popup = true;
     model.error_message = Some("Test error".to_string());
 
@@ -350,9 +485,15 @@ mod complete_message_coverage {
                                     Screen}};
     use std::collections::HashSet;
 
-    fn setup_model() -> Model { Model::new(NaiveDate::from_ymd_opt(2026, 10, 19).unwrap(), HashSet::new()) }
-
-    // ===== 에디터 점프 테스트 =====
+    fn setup_model() -> Model {
+        Model::new(
+            match NaiveDate::from_ymd_opt(2026, 10, 19) {
+                | Some(value) => value,
+                | None => panic!("Invalid date in test fixture"),
+            },
+            HashSet::new(),
+        )
+    }
 
     #[test]
     fn test_editor_goto_doc_end() {
@@ -378,8 +519,6 @@ mod complete_message_coverage {
         assert_eq!(model.editor_state.cursor_col, 0);
     }
 
-    // ===== 에디터 편집 기능 =====
-
     #[test]
     fn test_editor_delete_without_selection() {
         let mut model = setup_model();
@@ -388,7 +527,6 @@ mod complete_message_coverage {
         model.editor_state.cursor_line = 0;
         model.editor_state.cursor_col = 0;
 
-        // Selection이 없으면 EditorDelete는 아무것도 하지 않음 (Emacs 스타일)
         diary_application::update::update(&mut model, Msg::EditorDelete);
 
         assert_eq!(model.editor_state.content[0], "Hello World");
@@ -399,11 +537,10 @@ mod complete_message_coverage {
         let mut model = setup_model();
         model.screen = Screen::Editor;
         model.editor_state.content = vec!["Hello".to_string(), "World".to_string()];
-        model.editor_state.cursor_col = 5; // 줄 끝
+        model.editor_state.cursor_col = 5;
 
         diary_application::update::update(&mut model, Msg::EditorKillLine);
 
-        // 줄 끝에서 kill-line은 다음 줄을 합침
         assert_eq!(model.editor_state.content.len(), 1);
         assert_eq!(model.editor_state.content[0], "HelloWorld");
     }
@@ -413,16 +550,13 @@ mod complete_message_coverage {
         let mut model = setup_model();
         model.screen = Screen::Editor;
         model.editor_state.content = vec!["Hello".to_string(), "World".to_string()];
-        model.editor_state.cursor_col = 5; // 줄 끝
+        model.editor_state.cursor_col = 5;
 
         diary_application::update::update(&mut model, Msg::EditorDeleteForward);
 
-        // 줄 끝에서 delete-forward는 다음 줄을 합침
         assert_eq!(model.editor_state.content.len(), 1);
         assert_eq!(model.editor_state.content[0], "HelloWorld");
     }
-
-    // ===== 에디터 검색 =====
 
     #[test]
     fn test_editor_search_char_input() {
@@ -460,8 +594,6 @@ mod complete_message_coverage {
         assert!(model.editor_state.current_match_index < 3);
     }
 
-    // ===== 달력 년도 이동 =====
-
     #[test]
     fn test_calendar_next_year() {
         let mut model = setup_model();
@@ -484,8 +616,6 @@ mod complete_message_coverage {
         assert_eq!(model.calendar_state.current_year, original_year - 1);
     }
 
-    // ===== 파일 I/O =====
-
     #[test]
     fn test_load_diary_failed() {
         let mut model = setup_model();
@@ -494,7 +624,13 @@ mod complete_message_coverage {
         diary_application::update::update(&mut model, Msg::LoadDiaryFailed("File not found".to_string()));
 
         assert!(model.show_error_popup);
-        assert!(model.error_message.unwrap().contains("File not found"));
+        assert!(
+            (match model.error_message {
+                | Some(value) => value,
+                | None => panic!("Expected an application error message"),
+            })
+            .contains("File not found")
+        );
     }
 
     #[test]
@@ -505,13 +641,22 @@ mod complete_message_coverage {
         diary_application::update::update(&mut model, Msg::SaveDiaryFailed("Permission denied".to_string()));
 
         assert!(model.show_error_popup);
-        assert!(model.error_message.unwrap().contains("Permission denied"));
+        assert!(
+            (match model.error_message {
+                | Some(value) => value,
+                | None => panic!("Expected an application error message"),
+            })
+            .contains("Permission denied")
+        );
     }
 
     #[test]
     fn test_delete_diary_success() {
         let mut model = setup_model();
-        let date = NaiveDate::from_ymd_opt(2026, 2, 15).unwrap();
+        let date = match NaiveDate::from_ymd_opt(2026, 2, 15) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        };
         model.diary_entries.entries.insert(date);
 
         diary_application::update::update(&mut model, Msg::DeleteDiarySuccess(date));
@@ -522,8 +667,14 @@ mod complete_message_coverage {
     #[test]
     fn test_refresh_index() {
         let mut model = setup_model();
-        let date1 = NaiveDate::from_ymd_opt(2026, 2, 15).unwrap();
-        let date2 = NaiveDate::from_ymd_opt(2026, 2, 16).unwrap();
+        let date1 = match NaiveDate::from_ymd_opt(2026, 2, 15) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        };
+        let date2 = match NaiveDate::from_ymd_opt(2026, 2, 16) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        };
         let mut new_entries = HashSet::new();
         new_entries.insert(date1);
         new_entries.insert(date2);
@@ -532,8 +683,6 @@ mod complete_message_coverage {
 
         assert_eq!(model.diary_entries.entries.len(), 2);
     }
-
-    // ===== Helper Function Tests =====
 
     #[test]
     fn test_paste_clipboard_line_mode() {
@@ -560,8 +709,6 @@ mod complete_message_coverage {
 
         assert!(model.editor_state.content[0].contains("World"));
     }
-
-    // ===== 기타 메시지 =====
 
     #[test]
     fn test_quit_message() {

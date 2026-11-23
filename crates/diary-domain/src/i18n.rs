@@ -1,4 +1,3 @@
-//! UI translation catalog. Diary contents are never translated.
 use crate::settings::Language;
 #[derive(Clone, Copy)]
 pub enum Text {

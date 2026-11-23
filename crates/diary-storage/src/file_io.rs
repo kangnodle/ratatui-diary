@@ -1,4 +1,3 @@
-//! File validation and bounded, atomic I/O shared by diaries and preferences.
 use std::{fs::{self,
                File,
                Metadata},
@@ -92,7 +91,6 @@ pub(crate) fn read_text(path: &Path, limit: usize) -> io::Result<String> {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "File exceeds size limit"));
     }
     let mut bytes = Vec::new();
-    // Bound the read itself as well, since the file can grow after metadata().
     file.take(limit as u64 + 1).read_to_end(&mut bytes)?;
     if bytes.len() > limit {
         return Err(io::Error::new(io::ErrorKind::InvalidData, "File exceeds size limit"));
@@ -112,7 +110,6 @@ pub(crate) fn atomic_write(path: &Path, content: &str, limit: usize) -> io::Resu
     let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
     temporary.write_all(content.as_bytes())?;
     temporary.as_file().sync_all()?;
-    // Renaming replaces the directory entry without truncating a linked inode.
     temporary.persist(path).map_err(|error| error.error)?;
     Ok(())
 }

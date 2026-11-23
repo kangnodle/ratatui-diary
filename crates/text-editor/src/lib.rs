@@ -1,8 +1,3 @@
-//! 날짜·UI·저장소와 무관한 순수 멀티라인 텍스트 에디터 엔진.
-//!
-//! 커서 이동, 편집, 선택(selection), undo/redo, 검색을 제공한다.
-//! 외부 의존성이 없으며 어떤 애플리케이션에서도 재사용 가능하다.
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Selection {
     pub anchor_line: usize,
@@ -28,7 +23,6 @@ pub struct TextEditor {
     pub history_index: usize,
     pub clipboard: String,
     pub search_pattern: String,
-    /// Match positions sorted by (line, character column), including overlaps.
     pub search_matches: Vec<(usize, usize)>,
     pub current_match_index: usize,
 }
@@ -53,12 +47,10 @@ impl TextEditor {
             current_match_index: 0,
         };
 
-        // 초기 스냅샷 저장
         state.save_snapshot();
         state
     }
 
-    /// 문자 인덱스를 바이트 인덱스로 변환
     pub fn char_idx_to_byte_idx(&self, line: usize, char_idx: usize) -> usize {
         if line >= self.content.len() {
             return 0;
@@ -71,10 +63,8 @@ impl TextEditor {
     }
 
     pub fn save_snapshot(&mut self) {
-        // 현재 index 이후의 히스토리 제거 (분기된 히스토리 삭제)
         self.edit_history.truncate(self.history_index + 1);
 
-        // 현재 상태 저장
         let snapshot = Snapshot {
             content: self.content.clone(),
             cursor_line: self.cursor_line,
@@ -85,7 +75,6 @@ impl TextEditor {
         self.edit_history.push(snapshot);
         self.history_index = self.edit_history.len() - 1;
 
-        // 히스토리 크기 제한 (메모리 관리)
         const MAX_HISTORY: usize = 100;
         if self.edit_history.len() > MAX_HISTORY {
             self.edit_history.drain(0 .. 1);
@@ -129,8 +118,6 @@ impl TextEditor {
         self.is_modified = true;
     }
 
-    /// Insert a text block at point. Selection and undo checkpoints belong to
-    /// callers.
     pub fn insert_text(&mut self, text: &str) {
         if text.is_empty() {
             return;
@@ -185,12 +172,10 @@ impl TextEditor {
         };
 
         if self.cursor_col < line_char_len {
-            // 커서 앞 문자 삭제
             let byte_idx = self.char_idx_to_byte_idx(self.cursor_line, self.cursor_col);
             self.content[self.cursor_line].remove(byte_idx);
             self.is_modified = true;
         } else if self.cursor_line + 1 < self.content.len() {
-            // 줄 끝이면 다음 줄을 합침
             let next_line = self.content.remove(self.cursor_line + 1);
             self.content[self.cursor_line].push_str(&next_line);
             self.is_modified = true;
@@ -205,7 +190,6 @@ impl TextEditor {
         let line_char_len = self.content[self.cursor_line].chars().count();
 
         if self.cursor_col >= line_char_len {
-            // 커서가 줄 끝이면 다음 줄을 합침
             if self.cursor_line + 1 < self.content.len() {
                 let next_line = self.content.remove(self.cursor_line + 1);
                 self.content[self.cursor_line].push_str(&next_line);
@@ -215,7 +199,6 @@ impl TextEditor {
             return String::new();
         }
 
-        // 커서 위치부터 줄 끝까지 잘라내기
         let byte_idx = self.char_idx_to_byte_idx(self.cursor_line, self.cursor_col);
         let killed = self.content[self.cursor_line][byte_idx ..].to_string();
         self.content[self.cursor_line].truncate(byte_idx);
@@ -258,15 +241,12 @@ impl TextEditor {
         self.search_matches.clear();
         self.current_match_index = 0;
 
-        // 로드 후 히스토리 초기화
         self.edit_history.clear();
         self.save_snapshot();
     }
 
     pub fn get_content(&self) -> String { self.content.join("\n") }
 
-    /// Count characters and line separators without allocating a joined
-    /// document.
     pub fn char_len(&self) -> usize { self.content.iter().map(|line| line.chars().count()).sum::<usize>() + self.content.len().saturating_sub(1) }
 
     pub fn get_selection_range(&self) -> Option<((usize, usize), (usize, usize))> {

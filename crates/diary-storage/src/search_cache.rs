@@ -1,4 +1,3 @@
-//! Disposable derived data, kept beside diaries to isolate different stores.
 use crate::{Storage,
             file_io};
 use chrono::NaiveDate;

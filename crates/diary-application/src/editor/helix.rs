@@ -1,4 +1,3 @@
-//! Helix's single-selection modal editing, using the shared text engine.
 use super::state::{EditorState,
                    Selection};
 use crate::{app::{Command,
@@ -139,7 +138,6 @@ fn finish_insert(state: &mut EditorState) {
     }
 }
 
-/// Preserve text and undo history, normalizing the selection for the new mode.
 pub fn reset(state: &mut EditorState, active: bool) {
     finish_insert(state);
     state.helix = HelixState::default();
@@ -296,7 +294,6 @@ fn find_char(state: &mut EditorState, ch: char, backward: bool, till: bool, coun
 }
 
 fn search(state: &mut EditorState, next: bool, reverse: bool) {
-    // shortcut: Select n/N awaits a multi-range editor.
     if next && state.helix.mode == Mode::Select {
         return;
     }
@@ -678,7 +675,6 @@ pub fn update(key: KeyEvent, model: &mut Model) -> Option<Command> {
             | Some(digit) => digit as usize,
             | None => return None,
         };
-        // shortcut: counts cap at 10,000; revisit for large batch edits.
         state.helix.count = Some(state.helix.count.unwrap_or(0).saturating_mul(10).saturating_add(digit).min(10_000));
         return None;
     }

@@ -4,8 +4,14 @@ use tempfile::TempDir;
 
 #[test]
 fn test_new_creates_entries_directory() {
-    let temp = TempDir::new().unwrap();
-    let _storage = Storage::with_dir(temp.path()).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let _storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
 
     let entries_dir = temp.path().join("entries");
     assert!(entries_dir.exists());
@@ -14,68 +20,196 @@ fn test_new_creates_entries_directory() {
 
 #[test]
 fn test_save_creates_org_file() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
 
-    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let date = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     let content = "* 오늘의 일기\n** 배운 것\nOrg-mode로 작성한 본문";
 
-    storage.save(date, content).unwrap();
+    match storage.save(date, content) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not save the diary: {error:?}"),
+    };
 
     let file_path = temp.path().join("entries/2026-02-14.org");
     assert!(file_path.exists());
 
-    let saved = std::fs::read_to_string(file_path).unwrap();
+    let saved = match std::fs::read_to_string(file_path) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not read the text file: {error:?}"),
+    };
     assert_eq!(saved, content);
-    assert!(!storage.is_markdown(date).unwrap());
+    assert!(
+        !(match storage.is_markdown(date) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not identify the diary entry format: {error:?}"),
+        })
+    );
     assert!(!temp.path().join("entries/2026-02-14.md").exists());
 }
 
 #[test]
 fn legacy_markdown_keeps_its_file_format_when_loaded_saved_and_deleted() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
-    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
+    let date = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     let path = temp.path().join("entries/2026-02-14.md");
-    std::fs::write(&path, "# Original diary").unwrap();
+    match std::fs::write(&path, "# Original diary") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
 
-    assert!(storage.is_markdown(date).unwrap());
-    assert_eq!(storage.load(date).unwrap(), "# Original diary");
-    assert!(storage.scan_entries().unwrap().contains(&date));
-    storage.save(date, "# Updated diary").unwrap();
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), "# Updated diary");
+    assert!(match storage.is_markdown(date) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not identify the diary entry format: {error:?}"),
+    });
+    assert_eq!(
+        match storage.load(date) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not load the diary: {error:?}"),
+        },
+        "# Original diary"
+    );
+    assert!(
+        (match storage.scan_entries() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+        })
+        .contains(&date)
+    );
+    match storage.save(date, "# Updated diary") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not save the diary: {error:?}"),
+    };
+    assert_eq!(
+        match std::fs::read_to_string(&path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "# Updated diary"
+    );
     assert!(!path.with_extension("org").exists());
-    storage.delete(date).unwrap();
+    match storage.delete(date) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not delete the diary: {error:?}"),
+    };
     assert!(!path.exists());
-    assert!(storage.scan_entries().unwrap().is_empty());
+    assert!(
+        (match storage.scan_entries() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+        })
+        .is_empty()
+    );
 }
 
 #[test]
 fn org_takes_precedence_without_overwriting_legacy_markdown() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
-    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
+    let date = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     let org = temp.path().join("entries/2026-02-14.org");
     let markdown = org.with_extension("md");
-    std::fs::write(&org, "* Org diary").unwrap();
-    std::fs::write(&markdown, "# Legacy diary").unwrap();
+    match std::fs::write(&org, "* Org diary") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
+    match std::fs::write(&markdown, "# Legacy diary") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
 
-    assert!(!storage.is_markdown(date).unwrap());
-    assert_eq!(storage.load(date).unwrap(), "* Org diary");
-    storage.save(date, "* Updated Org diary").unwrap();
-    assert_eq!(std::fs::read_to_string(&org).unwrap(), "* Updated Org diary");
-    assert_eq!(std::fs::read_to_string(&markdown).unwrap(), "# Legacy diary");
-    assert_eq!(storage.scan_entries().unwrap().len(), 1);
-    storage.delete(date).unwrap();
+    assert!(
+        !(match storage.is_markdown(date) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not identify the diary entry format: {error:?}"),
+        })
+    );
+    assert_eq!(
+        match storage.load(date) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not load the diary: {error:?}"),
+        },
+        "* Org diary"
+    );
+    match storage.save(date, "* Updated Org diary") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not save the diary: {error:?}"),
+    };
+    assert_eq!(
+        match std::fs::read_to_string(&org) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "* Updated Org diary"
+    );
+    assert_eq!(
+        match std::fs::read_to_string(&markdown) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "# Legacy diary"
+    );
+    assert_eq!(
+        (match storage.scan_entries() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+        })
+        .len(),
+        1
+    );
+    match storage.delete(date) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not delete the diary: {error:?}"),
+    };
     assert!(!org.exists());
     assert!(!markdown.exists());
-    assert!(storage.scan_entries().unwrap().is_empty());
+    assert!(
+        (match storage.scan_entries() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+        })
+        .is_empty()
+    );
 }
 
 #[test]
 fn scanning_accepts_org_and_markdown_and_ignores_other_files_and_directories() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
     let entries = temp.path().join("entries");
     for name in [
         "2026-02-14.org",
@@ -86,53 +220,123 @@ fn scanning_accepts_org_and_markdown_and_ignores_other_files_and_directories() {
         "2026-02-16.txt",
         "2026-02-17.org.bak",
     ] {
-        std::fs::write(entries.join(name), "test").unwrap();
+        match std::fs::write(entries.join(name), "test") {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not write the file: {error:?}"),
+        };
     }
-    std::fs::create_dir(entries.join("2026-02-18.org")).unwrap();
-    let dates = storage.scan_entries().unwrap();
+    match std::fs::create_dir(entries.join("2026-02-18.org")) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not create the directory: {error:?}"),
+    };
+    let dates = match storage.scan_entries() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+    };
     assert_eq!(dates.len(), 2);
-    assert!(dates.contains(&NaiveDate::from_ymd_opt(2026, 2, 14).unwrap()));
-    assert!(dates.contains(&NaiveDate::from_ymd_opt(2026, 2, 15).unwrap()));
+    assert!(dates.contains(
+        &(match NaiveDate::from_ymd_opt(2026, 2, 14) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        })
+    ));
+    assert!(dates.contains(
+        &(match NaiveDate::from_ymd_opt(2026, 2, 15) {
+            | Some(value) => value,
+            | None => panic!("Invalid date in test fixture"),
+        })
+    ));
 }
 
 #[test]
 fn org_io_errors_do_not_fall_back_to_or_overwrite_markdown() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
-    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
+    let date = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     let org = temp.path().join("entries/2026-02-14.org");
     let markdown = org.with_extension("md");
-    std::fs::write(&markdown, "# Legacy diary").unwrap();
-    std::fs::write(&org, [0xff]).unwrap();
+    match std::fs::write(&markdown, "# Legacy diary") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
+    match std::fs::write(&org, [0xff]) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not write the file: {error:?}"),
+    };
     assert_eq!(storage.load(date).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
 
-    std::fs::remove_file(&org).unwrap();
-    std::fs::create_dir(&org).unwrap();
+    match std::fs::remove_file(&org) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not remove the file: {error:?}"),
+    };
+    match std::fs::create_dir(&org) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not create the directory: {error:?}"),
+    };
     assert!(storage.load(date).is_err());
     assert!(storage.save(date, "* Must not overwrite legacy").is_err());
     assert!(storage.delete(date).is_err());
-    assert_eq!(std::fs::read_to_string(markdown).unwrap(), "# Legacy diary");
+    assert_eq!(
+        match std::fs::read_to_string(markdown) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read the text file: {error:?}"),
+        },
+        "# Legacy diary"
+    );
 }
 
 #[test]
 fn test_load_existing_diary() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
 
-    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let date = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     let content = "Existing diary";
-    storage.save(date, content).unwrap();
+    match storage.save(date, content) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not save the diary: {error:?}"),
+    };
 
-    let loaded = storage.load(date).unwrap();
+    let loaded = match storage.load(date) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not load the diary: {error:?}"),
+    };
     assert_eq!(loaded, content);
 }
 
 #[test]
 fn test_load_nonexistent_diary() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
 
-    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
+    let date = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     let result = storage.load(date);
 
     assert!(result.is_err());
@@ -140,13 +344,28 @@ fn test_load_nonexistent_diary() {
 
 #[test]
 fn test_delete_diary() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
 
-    let date = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
-    storage.save(date, "test").unwrap();
+    let date = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
+    match storage.save(date, "test") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not save the diary: {error:?}"),
+    };
 
-    storage.delete(date).unwrap();
+    match storage.delete(date) {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not delete the diary: {error:?}"),
+    };
 
     let result = storage.load(date);
     assert!(result.is_err());
@@ -154,15 +373,36 @@ fn test_delete_diary() {
 
 #[test]
 fn test_scan_entries() {
-    let temp = TempDir::new().unwrap();
-    let storage = Storage::with_dir(temp.path()).unwrap();
+    let temp = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let storage = match Storage::with_dir(temp.path()) {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+    };
 
-    let date1 = NaiveDate::from_ymd_opt(2026, 2, 14).unwrap();
-    let date2 = NaiveDate::from_ymd_opt(2026, 2, 15).unwrap();
-    storage.save(date1, "test1").unwrap();
-    storage.save(date2, "test2").unwrap();
+    let date1 = match NaiveDate::from_ymd_opt(2026, 2, 14) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
+    let date2 = match NaiveDate::from_ymd_opt(2026, 2, 15) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
+    match storage.save(date1, "test1") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not save the diary: {error:?}"),
+    };
+    match storage.save(date2, "test2") {
+        | Ok(_) => (),
+        | Err(error) => panic!("Could not save the diary: {error:?}"),
+    };
 
-    let entries = storage.scan_entries().unwrap();
+    let entries = match storage.scan_entries() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not list the diary entries: {error:?}"),
+    };
 
     assert_eq!(entries.len(), 2);
     assert!(entries.contains(&date1));
@@ -171,18 +411,13 @@ fn test_scan_entries() {
 
 #[test]
 fn test_new_uses_system_data_dir() {
-    // Given: 시스템 데이터 디렉토리가 존재
-    // When: Storage::new() 호출
     let result = Storage::new();
 
-    // Then: 성공적으로 생성되거나 에러 반환
     match result {
         | Ok(storage) => {
-            // 생성된 storage는 유효해야 함
             assert!(storage.scan_entries().is_ok());
         },
         | Err(e) => {
-            // 에러 메시지 검증
             assert!(e.to_string().contains("Cannot find local data directory") || e.kind() == std::io::ErrorKind::NotFound);
         },
     }
@@ -190,11 +425,8 @@ fn test_new_uses_system_data_dir() {
 
 #[test]
 fn test_new_with_none_dir() {
-    // Given: 데이터 디렉토리를 찾을 수 없는 상황 시뮬레이션
-    // When: new_with_none_dir() 호출
     let result = Storage::new_with_none_dir();
 
-    // Then: 에러가 반환되어야 함
     assert!(result.is_err());
     if let Err(error) = result {
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);

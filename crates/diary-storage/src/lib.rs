@@ -16,8 +16,6 @@ pub struct Storage {
     entries_dir: PathBuf,
 }
 
-/// Daily documents are bounded before parsing, rendering or recording undo
-/// state.
 pub const MAX_DIARY_BYTES: usize = 4 * 1024 * 1024;
 
 impl Storage {
@@ -68,8 +66,6 @@ impl Storage {
             file_io::regular_file(&path.with_extension("md"))?;
         }
         fs::remove_file(&path)?;
-        // Remove a shadowed legacy entry too, so a deleted date cannot
-        // reappear.
         if path.extension().is_some_and(|ext| ext == "org") {
             match fs::remove_file(path.with_extension("md")) {
                 | Err(e) if e.kind() == io::ErrorKind::NotFound => {},
@@ -97,7 +93,6 @@ impl Storage {
         Ok(entries)
     }
 
-    /// Existing Markdown entries keep their format; new dates default to Org.
     pub fn is_markdown(&self, date: NaiveDate) -> io::Result<bool> {
         file_io::check_directory(&self.entries_dir)?;
         Ok(!file_io::regular_file(&self.entries_dir.join(format!("{date}.org")))? && file_io::regular_file(&self.entries_dir.join(format!("{date}.md")))?)

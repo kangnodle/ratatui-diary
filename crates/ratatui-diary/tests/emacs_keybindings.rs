@@ -13,8 +13,17 @@ use ratatui_diary::{app,
 use tempfile::TempDir;
 
 fn model(content: &str) -> (TempDir, TestApp) {
-    let dir = TempDir::new().unwrap();
-    let mut model = TestApp::new(Default::default(), Storage::with_dir(dir.path()).unwrap());
+    let dir = match TempDir::new() {
+        | Ok(value) => value,
+        | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+    };
+    let mut model = TestApp::new(
+        Default::default(),
+        match Storage::with_dir(dir.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        },
+    );
     model.screen = Screen::Editor;
     model.editor_state.load_content(content);
     (dir, model)
@@ -62,12 +71,24 @@ fn save_aliases_and_kill_buffer_save_to_org_and_return_to_calendar() {
         assert!(!model.editor_state.is_modified);
         assert_eq!(model.screen, Screen::Editor);
         let path = dir.path().join(format!("entries/{}.org", model.editor_state.date));
-        assert_eq!(std::fs::read_to_string(&path).unwrap(), "* Diary");
+        assert_eq!(
+            match std::fs::read_to_string(&path) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not read the text file: {error:?}"),
+            },
+            "* Diary"
+        );
         type_text(&mut model, " text");
         ctrl(&mut model, 'x');
         type_text(&mut model, "k");
         assert_eq!(model.screen, Screen::Calendar);
-        assert_eq!(std::fs::read_to_string(path).unwrap(), "* Diary text");
+        assert_eq!(
+            match std::fs::read_to_string(path) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not read the text file: {error:?}"),
+            },
+            "* Diary text"
+        );
     }
 }
 
@@ -76,7 +97,10 @@ fn quit_and_calendar_return_keep_unsaved_text_when_saving_fails() {
     for quit in [false, true] {
         let (dir, mut model) = model("");
         let path = dir.path().join(format!("entries/{}.org", model.editor_state.date));
-        std::fs::create_dir(&path).unwrap();
+        match std::fs::create_dir(&path) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not create the directory: {error:?}"),
+        };
         type_text(&mut model, "한글 diary");
         ctrl(&mut model, 'x');
         key(
@@ -91,7 +115,10 @@ fn quit_and_calendar_return_keep_unsaved_text_when_saving_fails() {
         assert_eq!(model.editor_state.get_content(), "한글 diary");
         ctrl(&mut model, 'g');
         assert!(!model.show_error_popup);
-        std::fs::remove_dir(&path).unwrap();
+        match std::fs::remove_dir(&path) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not remove the directory: {error:?}"),
+        };
         ctrl(&mut model, 'x');
         key(
             &mut model,
@@ -100,7 +127,13 @@ fn quit_and_calendar_return_keep_unsaved_text_when_saving_fails() {
         );
         assert_eq!(model.should_quit, quit);
         assert_eq!(model.screen, if quit { Screen::Editor } else { Screen::Calendar });
-        assert_eq!(std::fs::read_to_string(path).unwrap(), "한글 diary");
+        assert_eq!(
+            match std::fs::read_to_string(path) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not read the text file: {error:?}"),
+            },
+            "한글 diary"
+        );
     }
 }
 
@@ -270,15 +303,24 @@ fn search_highlights_only_matching_unicode_characters() {
     let (_dir, mut model) = model("한글X");
     ctrl(&mut model, 's');
     type_text(&mut model, "한글");
-    let mut terminal = Terminal::new(TestBackend::new(160, 30)).unwrap();
-    terminal.draw(|f| app::view(f, &model)).unwrap();
+    let mut terminal = match Terminal::new(TestBackend::new(160, 30)) {
+        | Ok(value) => value,
+        | Err(never) => match never {},
+    };
+    match terminal.draw(|f| app::view(f, &model)) {
+        | Ok(_) => (),
+        | Err(never) => match never {},
+    };
     let buffer = terminal.backend().buffer();
     assert_eq!(buffer[(0, 1)].bg, ratatui_diary::theme::palette(model.settings.theme).current_search);
     assert_eq!(buffer[(4, 1)].symbol(), "X");
     assert_eq!(buffer[(4, 1)].bg, ratatui_diary::theme::palette(model.settings.theme).bg);
     model.settings.language = Language::English;
     ctrl(&mut model, 'r');
-    terminal.draw(|f| app::view(f, &model)).unwrap();
+    match terminal.draw(|f| app::view(f, &model)) {
+        | Ok(_) => (),
+        | Err(never) => match never {},
+    };
     let text: String = terminal.backend().buffer().content.iter().map(|cell| cell.symbol()).collect();
     assert!(text.contains("I-search backward:"));
 }

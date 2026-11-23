@@ -1,5 +1,3 @@
-//! Effect interpreter and startup composition. Filesystem and clock access stay
-//! here.
 use diary_application::{Command,
                         EntryFormat,
                         Model,
@@ -54,12 +52,17 @@ impl Runtime {
         while let Some(command) = next {
             let message = match command {
                 | Command::Search(id, query) => {
-                    let result = (|| {
-                        if self.search_worker.is_none() {
-                            self.search_worker = Some(search::Worker::start(self.storage.clone()).map_err(|e| e.to_string())?);
-                        }
-                        self.search_worker.as_ref().unwrap().submit(id, query)
-                    })();
+                    let result = match self.search_worker.as_ref() {
+                        | Some(worker) => worker.submit(id, query),
+                        | None => match search::Worker::start(self.storage.clone()) {
+                            | Ok(worker) => {
+                                let result = worker.submit(id, query);
+                                self.search_worker = Some(worker);
+                                result
+                            },
+                            | Err(error) => Err(error.to_string()),
+                        },
+                    };
                     match result {
                         | Ok(()) => return,
                         | Err(error) => Msg::SearchFinished(id, Err(error)),
@@ -99,18 +102,12 @@ impl Runtime {
         }
     }
 
-    /// Schedule once after the shell's first frame; model loading stays on the
-    /// search worker.
     pub fn preload_search_model(&mut self) {
         if self.search_worker.is_none() {
-            // Search retries thread creation and reports failure through its
-            // normal result path.
             self.search_worker = search::Worker::preload(self.storage.clone()).ok();
         }
     }
 
-    /// Called by the shell between terminal events; stale search replies are
-    /// discarded by update.
     pub fn poll(&mut self, model: &mut Model) -> bool {
         let Some(worker) = &self.search_worker else {
             return false;
@@ -152,8 +149,14 @@ mod preload_tests {
 
     #[test]
     fn paused_preload_runs_once_off_thread_and_does_not_block_edit_save_or_quit() {
-        let directory = TempDir::new().unwrap();
-        let storage = Storage::with_dir(directory.path()).unwrap();
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let storage = match Storage::with_dir(directory.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        };
         let mut runtime = Runtime::new(storage.clone(), None);
         let mut model = Model::new(chrono::NaiveDate::default(), Default::default());
         let (entered, started) = mpsc::channel();
@@ -161,67 +164,122 @@ mod preload_tests {
         let calls = Arc::new(AtomicUsize::new(0));
         let loaded = calls.clone();
         runtime.search_worker = Some(
-            search::Worker::spawn(
+            match search::Worker::spawn(
                 storage,
                 Some(move || {
                     loaded.fetch_add(1, Ordering::SeqCst);
-                    entered.send(std::thread::current().id()).unwrap();
+                    match entered.send(std::thread::current().id()) {
+                        | Ok(_) => (),
+                        | Err(error) => panic!("Could not send the worker message: {error:?}"),
+                    };
                     let _ = paused.recv();
                     Err("simulated preload failure".into())
                 }),
-            )
-            .unwrap(),
+            ) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not start the test search worker: {error:?}"),
+            },
         );
-        assert_ne!(started.recv_timeout(Duration::from_secs(3)).unwrap(), std::thread::current().id());
+        assert_ne!(
+            match started.recv_timeout(Duration::from_secs(3)) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not receive the worker response: {error:?}"),
+            },
+            std::thread::current().id()
+        );
         runtime.preload_search_model();
         runtime.preload_search_model();
         assert!(!runtime.poll(&mut model));
-        let command = update(&mut model, Msg::CalendarSelectDate).unwrap();
+        let command = match update(&mut model, Msg::CalendarSelectDate) {
+            | Some(value) => value,
+            | None => panic!("Expected the application update to produce a command"),
+        };
         runtime.execute(command, &mut model);
         update(&mut model, Msg::EditorInsertChar('한'));
         runtime.execute(Command::SaveDiary(model.today, model.editor_state.get_content()), &mut model);
-        assert_eq!(runtime.storage.load(model.today).unwrap(), "한");
+        assert_eq!(
+            match runtime.storage.load(model.today) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load the diary: {error:?}"),
+            },
+            "한"
+        );
         assert!(!model.editor_state.is_modified);
         assert!(update(&mut model, Msg::Quit).is_none());
         assert!(model.should_quit);
         assert_eq!(calls.load(Ordering::SeqCst), 1);
-        release.send(()).unwrap();
-        assert_eq!(
-            runtime.search_worker.as_ref().unwrap().ready.recv_timeout(Duration::from_secs(3)).unwrap(),
-            Err("simulated preload failure".into())
-        );
+        match release.send(()) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not send the worker message: {error:?}"),
+        };
+        let worker = match runtime.search_worker.as_ref() {
+            | Some(worker) => worker,
+            | None => panic!("Expected the search worker to be present"),
+        };
+        let ready = match worker.ready.recv_timeout(Duration::from_secs(3)) {
+            | Ok(ready) => ready,
+            | Err(error) => panic!("Could not receive the worker response: {error:?}"),
+        };
+        assert_eq!(ready, Err("simulated preload failure".into()));
         assert!(!model.show_error_popup);
     }
 
     #[test]
     fn queries_during_preload_share_the_worker_and_keep_only_the_latest_query() {
-        let directory = TempDir::new().unwrap();
-        let storage = Storage::with_dir(directory.path()).unwrap();
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let storage = match Storage::with_dir(directory.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        };
         let mut runtime = Runtime::new(storage.clone(), None);
         let mut model = Model::new(chrono::NaiveDate::default(), Default::default());
         let (entered, started) = mpsc::channel();
         let (release, paused) = mpsc::channel();
         runtime.search_worker = Some(
-            search::Worker::spawn(
+            match search::Worker::spawn(
                 storage,
                 Some(move || {
-                    entered.send(()).unwrap();
+                    match entered.send(()) {
+                        | Ok(_) => (),
+                        | Err(error) => panic!("Could not send the worker message: {error:?}"),
+                    };
                     let _ = paused.recv();
                     Err("simulated preload failure".into())
                 }),
-            )
-            .unwrap(),
+            ) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not start the test search worker: {error:?}"),
+            },
         );
-        started.recv_timeout(Duration::from_secs(3)).unwrap();
+        match started.recv_timeout(Duration::from_secs(3)) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not receive the worker response: {error:?}"),
+        };
         for id in 1 ..= 3 {
             runtime.execute(Command::Search(id, format!("query {id}")), &mut model);
         }
-        assert!(runtime.search_worker.as_ref().unwrap().responses.try_recv().is_err());
-        release.send(()).unwrap();
-        let worker = runtime.search_worker.as_ref().unwrap();
-        worker.ready.recv_timeout(Duration::from_secs(3)).unwrap().unwrap_err();
+        let worker = match runtime.search_worker.as_ref() {
+            | Some(worker) => worker,
+            | None => panic!("Expected the search worker to be present"),
+        };
+        assert!(worker.responses.try_recv().is_err());
+        match release.send(()) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not send the worker message: {error:?}"),
+        };
+        match worker.ready.recv_timeout(Duration::from_secs(3)) {
+            | Ok(Err(_)) => (),
+            | Ok(Ok(())) => panic!("Expected the search model preload to fail"),
+            | Err(error) => panic!("Could not receive the worker response: {error:?}"),
+        };
         assert!(matches!(
-            worker.responses.recv_timeout(Duration::from_secs(3)).unwrap(),
+            match worker.responses.recv_timeout(Duration::from_secs(3)) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not receive the worker response: {error:?}"),
+            },
             Msg::SearchFinished(3, Ok(_))
         ));
         assert!(worker.responses.try_recv().is_err());

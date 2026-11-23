@@ -1,4 +1,3 @@
-//! TUI composition of the pure application and presentation modules.
 pub use crate::input::handle_key;
 pub use diary_application::app::{Command,
                                  DiaryIndex,

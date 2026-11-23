@@ -1,4 +1,3 @@
-//! Reproducible action timings; setup and teardown are outside each sample.
 use chrono::NaiveDate;
 use diary_application::{Model,
                         Msg,

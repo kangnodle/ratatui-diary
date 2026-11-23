@@ -97,7 +97,6 @@ fn test_render_links() {
     assert!(result.lines.len() > 0);
 }
 
-// 추가 테스트: Skin colors 및 인라인 코드 테스트
 #[test]
 fn test_render_inline_code() {
     let markdown = "This is `inline code` in text";
@@ -209,7 +208,6 @@ fn test_render_numbered_list() {
     assert!(result.lines.len() >= 3);
 }
 
-// Color conversion tests
 #[test]
 fn test_to_ratatui_color_black() {
     let color = to_ratatui_color(TermColor::Black);

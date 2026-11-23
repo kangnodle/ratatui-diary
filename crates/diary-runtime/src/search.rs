@@ -1,5 +1,3 @@
-//! CPU-only embeddings with a per-diary persistent vector cache. A single
-//! worker keeps inference off the UI thread.
 use diary_application::{Msg,
                         search::{SearchHit,
                                  SearchOutput}};
@@ -43,13 +41,9 @@ impl Worker {
                 let model = loader();
                 #[cfg(test)]
                 let _ = readied.send(model.as_ref().map(|_| ()).map_err(Clone::clone));
-                // A failed preload is retried by the first search, which owns
-                // the error UI.
                 index.model = model.ok();
             }
             while let Ok(mut request) = incoming.recv() {
-                // Keep only the newest queued query after a slow model
-                // download.
                 while let Ok(newer) = incoming.try_recv() {
                     request = newer;
                 }
@@ -95,8 +89,6 @@ struct Document {
     passages: Vec<Passage>,
 }
 
-// Bump when the model, tokenizer settings, pooling or passage splitting
-// changes.
 const CACHE_VERSION: &str = "fastembed-7.1.1/multilingual-e5-small/mean/max512/chars240/v1";
 const DIMENSIONS: usize = 384;
 const BATCH_SIZE: usize = 16;
@@ -188,15 +180,16 @@ impl Index {
     }
 
     fn embed_documents(&mut self) -> Result<(), String> {
-        let model = self.model.as_mut().unwrap();
+        let model = match self.model.as_mut() {
+            | Some(model) => model,
+            | None => return Err("Embedding model is not loaded".into()),
+        };
         let mut missing: Vec<_> = self
             .documents
             .values_mut()
             .flat_map(|doc| &mut doc.passages)
             .filter(|p| p.vector.is_empty())
             .collect();
-        // Similar lengths reduce padding work; references retain the original
-        // source positions.
         missing.sort_by_cached_key(|p| p.text.chars().count());
         for batch in missing.chunks_mut(BATCH_SIZE) {
             let inputs: Vec<_> = batch.iter().map(|p| format!("passage: {}", p.text)).collect();
@@ -246,7 +239,10 @@ impl Index {
     }
 
     fn embed_query(&mut self, query: &str) -> Result<Vec<f32>, String> {
-        let model = self.model.as_mut().unwrap();
+        let model = match self.model.as_mut() {
+            | Some(model) => model,
+            | None => return Err("Embedding model is not loaded".into()),
+        };
         model
             .embed(vec![format!("query: {query}")], Some(1))
             .map_err(|e| e.to_string())?
@@ -306,8 +302,6 @@ fn passages(content: &str) -> Vec<Passage> {
             continue;
         }
         for (col, ch) in source.chars().enumerate() {
-            // Bound Korean passages too, rather than silently truncating long
-            // paragraphs at the tokenizer limit.
             if count >= 240 {
                 result.push(Passage {
                     line: start_line,
@@ -369,8 +363,6 @@ fn rank(documents: &BTreeMap<chrono::NaiveDate, Document>, pattern: &Regex, quer
     for (&date, document) in documents {
         let matches: Vec<_> = pattern.find_iter(&document.content).take(100).collect();
         let literal_positions: Vec<_> = matches.iter().map(|m| position(&document.content, m.start())).collect();
-        // Literal matches use the original document, including phrases crossing
-        // embedding chunk boundaries.
         for (m, &(line, col)) in matches.iter().zip(&literal_positions) {
             let before: String = document.content[.. m.start()]
                 .chars()
@@ -446,6 +438,14 @@ mod tests {
     use super::*;
     use tempfile::TempDir;
 
+    #[test]
+    fn embedding_without_a_model_returns_an_error() {
+        let mut index = Index::default();
+
+        assert_eq!(index.embed_documents(), Err("Embedding model is not loaded".into()));
+        assert_eq!(index.embed_query("query"), Err("Embedding model is not loaded".into()));
+    }
+
     fn fill_vectors(index: &mut Index) {
         for document in index.documents.values_mut() {
             for passage in &mut document.passages {
@@ -456,51 +456,123 @@ mod tests {
 
     #[test]
     fn persistent_cache_survives_restart_but_not_same_length_edits_or_deletions() {
-        let directory = TempDir::new().unwrap();
-        let storage = Storage::with_dir(directory.path()).unwrap();
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let storage = match Storage::with_dir(directory.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        };
         let date = chrono::NaiveDate::default();
-        storage.save(date, "비밀 기록\r\n\r\n다음 문단").unwrap();
+        match storage.save(date, "비밀 기록\r\n\r\n다음 문단") {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save the diary: {error:?}"),
+        };
         let mut index = Index::default();
-        index.refresh(&storage).unwrap();
+        match index.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         fill_vectors(&mut index);
         index.persist(&storage);
         assert!(index.cache_notice.is_none());
-        let source = storage.load_search_cache(date).unwrap().unwrap();
+        let source = match storage.load_search_cache(date) {
+            | Ok(Some(value)) => value,
+            | Ok(None) => panic!("Expected a stored embedding cache entry"),
+            | Err(error) => panic!("Could not load the embedding cache: {error:?}"),
+        };
         assert!(!source.contains("비밀"));
         let mut reopened = Index::default();
-        reopened.refresh(&storage).unwrap();
+        match reopened.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         assert_eq!(reopened.documents[&date].passages[0].vector, index.documents[&date].passages[0].vector);
         assert!(reopened.pending_cache.is_empty());
-        storage.save(date, "다른 기록\r\n\r\n다음 문단").unwrap();
-        reopened.refresh(&storage).unwrap();
+        match storage.save(date, "다른 기록\r\n\r\n다음 문단") {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save the diary: {error:?}"),
+        };
+        match reopened.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         assert!(reopened.documents[&date].passages.iter().all(|p| p.vector.is_empty()));
         fill_vectors(&mut reopened);
         reopened.persist(&storage);
-        storage.delete(date).unwrap();
-        reopened.refresh(&storage).unwrap();
+        match storage.delete(date) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not delete the diary: {error:?}"),
+        };
+        match reopened.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         assert!(reopened.documents.is_empty());
-        assert!(storage.load_search_cache(date).unwrap().is_none());
-        let other_directory = TempDir::new().unwrap();
-        let other_storage = Storage::with_dir(other_directory.path()).unwrap();
-        assert!(other_storage.load_search_cache(date).unwrap().is_none());
+        assert!(
+            (match storage.load_search_cache(date) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load the embedding cache: {error:?}"),
+            })
+            .is_none()
+        );
+        let other_directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let other_storage = match Storage::with_dir(other_directory.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        };
+        assert!(
+            (match other_storage.load_search_cache(date) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load the embedding cache: {error:?}"),
+            })
+            .is_none()
+        );
     }
 
     #[test]
     fn invalid_cache_is_rebuilt_and_cache_write_failure_preserves_search_data() {
-        let directory = TempDir::new().unwrap();
-        let storage = Storage::with_dir(directory.path()).unwrap();
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let storage = match Storage::with_dir(directory.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        };
         let date = chrono::NaiveDate::default();
-        storage.save(date, "원문 유지").unwrap();
+        match storage.save(date, "원문 유지") {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save the diary: {error:?}"),
+        };
         let mut index = Index::default();
-        index.refresh(&storage).unwrap();
+        match index.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         fill_vectors(&mut index);
         index.persist(&storage);
-        let valid = storage.load_search_cache(date).unwrap().unwrap();
-        let parsed: serde_json::Value = serde_json::from_str(&valid).unwrap();
+        let valid = match storage.load_search_cache(date) {
+            | Ok(Some(value)) => value,
+            | Ok(None) => panic!("Expected a stored embedding cache entry"),
+            | Err(error) => panic!("Could not load the embedding cache: {error:?}"),
+        };
+        let parsed: serde_json::Value = match serde_json::from_str(&valid) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not parse the JSON data: {error:?}"),
+        };
         let mut version = parsed.clone();
         version["version"] = "old-model".into();
         let mut fingerprint = parsed.clone();
-        fingerprint["fingerprint"][0] = (fingerprint["fingerprint"][0].as_u64().unwrap() ^ 255).into();
+        let first_byte = match fingerprint["fingerprint"][0].as_u64() {
+            | Some(byte) => byte,
+            | None => panic!("Expected a numeric fingerprint byte"),
+        };
+        fingerprint["fingerprint"][0] = (first_byte ^ 255).into();
         let mut shape = parsed.clone();
         shape["vectors"] = serde_json::json!([[1.0]]);
         let mut zero = parsed.clone();
@@ -512,27 +584,56 @@ mod tests {
             shape.to_string(),
             zero.to_string(),
         ] {
-            storage.save_search_cache(date, &source).unwrap();
+            match storage.save_search_cache(date, &source) {
+                | Ok(_) => (),
+                | Err(error) => panic!("Could not save the embedding cache: {error:?}"),
+            };
             let mut reopened = Index::default();
-            reopened.refresh(&storage).unwrap();
+            match reopened.refresh(&storage) {
+                | Ok(_) => (),
+                | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+            };
             assert!(reopened.documents[&date].passages[0].vector.is_empty());
             assert!(reopened.pending_cache.contains(&date));
             fill_vectors(&mut reopened);
             reopened.persist(&storage);
-            assert_eq!(storage.load_search_cache(date).unwrap().unwrap(), valid);
+            assert_eq!(
+                match storage.load_search_cache(date) {
+                    | Ok(Some(value)) => value,
+                    | Ok(None) => panic!("Expected a stored embedding cache entry"),
+                    | Err(error) => panic!("Could not load the embedding cache: {error:?}"),
+                },
+                valid
+            );
         }
         let path = directory.path().join(format!("entries/.search-cache/{date}.json"));
-        let original = std::fs::metadata(&path).unwrap().permissions();
+        let original = (match std::fs::metadata(&path) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not read file metadata: {error:?}"),
+        })
+        .permissions();
         let mut readonly = original.clone();
         readonly.set_readonly(true);
-        std::fs::set_permissions(&path, readonly).unwrap();
+        match std::fs::set_permissions(&path, readonly) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not set file permissions: {error:?}"),
+        };
         index.pending_cache.insert(date);
         index.persist(&storage);
         assert!(index.cache_notice.is_some());
         assert!(index.pending_cache.contains(&date));
-        assert_eq!(storage.load(date).unwrap(), "원문 유지");
+        assert_eq!(
+            match storage.load(date) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load the diary: {error:?}"),
+            },
+            "원문 유지"
+        );
         assert_eq!(index.documents[&date].passages[0].vector.len(), DIMENSIONS);
-        std::fs::set_permissions(path, original).unwrap();
+        match std::fs::set_permissions(path, original) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not set file permissions: {error:?}"),
+        };
     }
 
     #[test]
@@ -543,7 +644,14 @@ mod tests {
         assert_eq!((chunks[2].line, chunks[2].col), (2, 240));
         assert_eq!((chunks[3].line, chunks[3].col), (2, 480));
         assert_eq!(chunks.iter().map(|p| p.text.matches('가').count()).sum::<usize>(), 500);
-        assert!(chunks.last().unwrap().text.contains('끝'));
+        assert!(
+            (match chunks.last() {
+                | Some(value) => value,
+                | None => panic!("Expected at least one item in the test output"),
+            })
+            .text
+            .contains('끝')
+        );
     }
 
     #[test]
@@ -561,7 +669,10 @@ mod tests {
                 passages: chunks,
             },
         )]);
-        let pattern = RegexBuilder::new("mixed").case_insensitive(true).build().unwrap();
+        let pattern = match RegexBuilder::new("mixed").case_insensitive(true).build() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not compile the search pattern: {error:?}"),
+        };
         let hits = rank(&documents, &pattern, Some(&[1.0, 0.0]));
         assert!(hits[0].literal);
         assert_eq!((hits[0].line, hits[0].col), (0, 239));
@@ -575,50 +686,110 @@ mod tests {
 
     #[test]
     fn refresh_reuses_unchanged_vectors_and_tracks_external_edits_and_deletions() {
-        let directory = TempDir::new().unwrap();
-        let storage = Storage::with_dir(directory.path()).unwrap();
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let storage = match Storage::with_dir(directory.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        };
         let date = chrono::NaiveDate::default();
-        storage.save(date, "원래 내용").unwrap();
+        match storage.save(date, "원래 내용") {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save the diary: {error:?}"),
+        };
         let mut index = Index::default();
-        index.refresh(&storage).unwrap();
-        index.documents.get_mut(&date).unwrap().passages[0].vector = vec![1.0];
-        index.refresh(&storage).unwrap();
+        match index.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
+        (match index.documents.get_mut(&date) {
+            | Some(value) => value,
+            | None => panic!("Expected the indexed diary to exist"),
+        })
+        .passages[0]
+            .vector = vec![1.0];
+        match index.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         assert_eq!(index.documents[&date].passages[0].vector, [1.0]);
-        storage.save(date, "변경된 내용").unwrap();
-        index.refresh(&storage).unwrap();
+        match storage.save(date, "변경된 내용") {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save the diary: {error:?}"),
+        };
+        match index.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         assert!(index.documents[&date].passages[0].vector.is_empty());
-        storage.delete(date).unwrap();
-        index.refresh(&storage).unwrap();
+        match storage.delete(date) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not delete the diary: {error:?}"),
+        };
+        match index.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         assert!(index.documents.is_empty());
-        std::fs::write(directory.path().join(format!("entries/{date}.md")), "legacy").unwrap();
-        index.refresh(&storage).unwrap();
+        match std::fs::write(directory.path().join(format!("entries/{date}.md")), "legacy") {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not write the file: {error:?}"),
+        };
+        match index.refresh(&storage) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not refresh the diary search index: {error:?}"),
+        };
         assert_eq!(index.documents[&date].content, "legacy");
     }
 
     #[test]
     #[ignore = "downloads the multilingual model once; run explicitly to verify real CPU inference"]
     fn real_korean_semantic_search() {
-        let directory = TempDir::new().unwrap();
-        let storage = Storage::with_dir(directory.path()).unwrap();
+        let directory = match TempDir::new() {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not create a temporary directory: {error:?}"),
+        };
+        let storage = match Storage::with_dir(directory.path()) {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not initialize diary storage: {error:?}"),
+        };
         let date = chrono::NaiveDate::default();
-        storage
-            .save(
-                date,
-                "앞으로 어떤 일을 하며 살아야 할지 모르겠다. 내 미래가 걱정돼 잠이 오지 않는다.\n\n저녁에 파스타를 만들었다. 토마토 소스가 맛있었다.",
-            )
-            .unwrap();
+        match storage.save(
+            date,
+            "앞으로 어떤 일을 하며 살아야 할지 모르겠다. 내 미래가 걱정돼 잠이 오지 않는다.\n\n저녁에 파스타를 만들었다. 토마토 소스가 맛있었다.",
+        ) {
+            | Ok(_) => (),
+            | Err(error) => panic!("Could not save the diary: {error:?}"),
+        };
         let mut index = Index::default();
-        let output = index.search(&storage, "진로에 대한 불안").unwrap();
+        let output = match index.search(&storage, "진로에 대한 불안") {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not search the diaries: {error:?}"),
+        };
         assert!(output.notice.is_none(), "{:?}", output.notice);
         assert!(!output.results[0].literal);
         assert!(output.results[0].excerpt.contains("미래"));
-        assert!(storage.load_search_cache(date).unwrap().is_some());
+        assert!(
+            (match storage.load_search_cache(date) {
+                | Ok(value) => value,
+                | Err(error) => panic!("Could not load the embedding cache: {error:?}"),
+            })
+            .is_some()
+        );
         let mut reopened = Index::default();
-        let cached_output = reopened.search(&storage, "진로에 대한 불안").unwrap();
+        let cached_output = match reopened.search(&storage, "진로에 대한 불안") {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not search the diaries: {error:?}"),
+        };
         assert_eq!(cached_output, output);
         assert_eq!(reopened.embedded_passages, 0);
         assert_eq!(reopened.embedding_calls, 0);
-        let output = index.search(&storage, "파스타").unwrap();
+        let output = match index.search(&storage, "파스타") {
+            | Ok(value) => value,
+            | Err(error) => panic!("Could not search the diaries: {error:?}"),
+        };
         assert!(output.results[0].literal);
         assert_eq!(output.results[0].line, 2);
     }

@@ -18,7 +18,6 @@
   tempfile            = "3.27.0"
   unicode-width       = "0.2.2"
 
-  # 워크스페이스 내부 크레이트
   diary-application = { path = "crates/diary-application" }
   diary-domain      = { path = "crates/diary-domain" }
   diary-runtime     = { path = "crates/diary-runtime" }

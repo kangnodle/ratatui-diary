@@ -1,9 +1,3 @@
-//! 에디터 화면의 메시지 처리.
-//!
-//! 호출 시점에 이미 화면이 [`crate::app::Screen::Editor`]임이 보장되므로
-//! (최상위 [`crate::app::update()`] 디스패처가 화면별로 위임) 별도의
-//! 화면 가드 없이 자신의 메시지만 처리한다.
-
 use crate::{app::{Command,
                   Model},
             editor::state::{EditorSubMode,
@@ -11,7 +5,6 @@ use crate::{app::{Command,
             message::Msg};
 use text_editor::TextEditor;
 
-/// Selection이 활성화되어 있으면 커서 이동시 selection도 업데이트
 fn update_selection_on_move(state: &mut TextEditor) {
     if let Some(ref mut sel) = state.selection {
         sel.cursor_line = state.cursor_line;
@@ -19,7 +12,6 @@ fn update_selection_on_move(state: &mut TextEditor) {
     }
 }
 
-/// 클립보드 내용을 커서 위치에 붙여넣기
 fn paste_clipboard(state: &mut TextEditor) {
     state.selection = None;
     state.insert_text(&state.clipboard.clone());
@@ -50,7 +42,6 @@ fn kill_word(state: &mut TextEditor, backward: bool) {
 
 pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
     match msg {
-        // ===== 네비게이션 =====
         | Msg::EditorMoveLeft =>
             if model.editor_state.cursor_col > 0 {
                 model.editor_state.cursor_col -= 1;
@@ -98,7 +89,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             update_selection_on_move(&mut model.editor_state);
         },
 
-        // ===== 점프 =====
         | Msg::EditorGotoDocStart => {
             model.editor_state.cursor_line = 0;
             model.editor_state.cursor_col = 0;
@@ -123,7 +113,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             model.editor_state.cursor_col = line_len;
             update_selection_on_move(&mut model.editor_state);
         },
-        // ===== 문자 입력 (항상 활성) =====
         | msg @ (Msg::EditorInsertChar(_) | Msg::EditorBackspace | Msg::EditorNewLine | Msg::EditorOpenLine) => {
             let state = &mut model.editor_state;
             state.selection = None;
@@ -137,7 +126,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             state.save_snapshot();
         },
 
-        // ===== Selection =====
         | Msg::EditorToggleSelection => {
             let state = &mut model.editor_state;
             if state.selection.is_some() {
@@ -166,9 +154,7 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             });
         },
 
-        // ===== 편집 기능 =====
         | Msg::EditorDelete =>
-        // Selection이 있을 때만 삭제
             if model.editor_state.selection.is_some() {
                 if let Some(text) = model.editor_state.get_selected_text() {
                     model.editor_state.clipboard = text;
@@ -199,11 +185,9 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             model.editor_state.save_snapshot();
         },
 
-        // ===== Undo/Redo =====
         | Msg::EditorUndo => model.editor_state.undo(),
         | Msg::EditorRedo => model.editor_state.redo(),
 
-        // ===== 검색 =====
         | Msg::EditorEnterSearchMode => model.editor_state.start_search(false),
         | Msg::EditorEnterReverseSearchMode => model.editor_state.start_search(true),
         | Msg::EditorSearchChar(c) =>
@@ -241,7 +225,6 @@ pub fn update(model: &mut Model, msg: Msg) -> Option<Command> {
             }
         },
 
-        // ===== Ctrl+X 프리픽스 =====
         | Msg::EditorCtrlXSave =>
             if model.editor_state.submode == Some(EditorSubMode::CtrlX) {
                 let date = model.editor_state.date;

@@ -3,7 +3,6 @@ use ratatui::{style::{Modifier,
               text::{Line,
                      Text}};
 
-/// Render Org headlines using org-bullets' default, repeating bullet sequence.
 pub fn render_to_text(org: &str) -> Text<'static> {
     const BULLETS: [&str; 4] = ["◉", "○", "✸", "✿"];
     let mut block_end = None;
@@ -29,7 +28,6 @@ pub fn render_to_text(org: &str) -> Text<'static> {
                 Style::default().add_modifier(Modifier::BOLD),
             ));
         } else {
-            // shortcut: body stays raw; add an Org parser for rich rendering.
             lines.push(Line::raw(line.to_owned()));
         }
     }

@@ -28,9 +28,18 @@ fn cursor_navigation_follows_month_and_year_and_loads_the_selected_preview() {
             ((2024, 3, 1), KeyCode::Up, (2024, 2, 23)),
             ((2024, 2, 28), KeyCode::Down, (2024, 3, 6)),
         ] {
-            let mut model = Model::new(NaiveDate::from_ymd_opt(start.0, start.1, start.2).unwrap(), Default::default());
+            let mut model = Model::new(
+                match NaiveDate::from_ymd_opt(start.0, start.1, start.2) {
+                    | Some(value) => value,
+                    | None => panic!("Invalid date in test fixture"),
+                },
+                Default::default(),
+            );
             model.settings.keybindings = keybindings;
-            let expected = NaiveDate::from_ymd_opt(end.0, end.1, end.2).unwrap();
+            let expected = match NaiveDate::from_ymd_opt(end.0, end.1, end.2) {
+                | Some(value) => value,
+                | None => panic!("Invalid date in test fixture"),
+            };
             assert!(matches!(press(&mut model, code, KeyModifiers::NONE), Some(Command::LoadPreview(date)) if date == expected));
             assert_date(&model, expected);
         }
@@ -49,9 +58,18 @@ fn page_keys_change_month_and_year_in_both_keymaps_and_clamp_short_months() {
             ((2024, 2, 29), KeyCode::PageUp, KeyModifiers::CONTROL, (2023, 2, 28)),
             ((2023, 10, 19), KeyCode::PageDown, KeyModifiers::CONTROL, (2024, 10, 19)),
         ] {
-            let mut model = Model::new(NaiveDate::from_ymd_opt(start.0, start.1, start.2).unwrap(), Default::default());
+            let mut model = Model::new(
+                match NaiveDate::from_ymd_opt(start.0, start.1, start.2) {
+                    | Some(value) => value,
+                    | None => panic!("Invalid date in test fixture"),
+                },
+                Default::default(),
+            );
             model.settings.keybindings = keybindings;
-            let expected = NaiveDate::from_ymd_opt(end.0, end.1, end.2).unwrap();
+            let expected = match NaiveDate::from_ymd_opt(end.0, end.1, end.2) {
+                | Some(value) => value,
+                | None => panic!("Invalid date in test fixture"),
+            };
             assert!(matches!(press(&mut model, code, modifiers), Some(Command::LoadPreview(date)) if date == expected));
             assert_date(&model, expected);
         }
@@ -78,7 +96,10 @@ fn calendar_navigation_stays_in_sync_at_date_limits() {
 
 #[test]
 fn page_navigation_does_not_bypass_overlays_or_command_prefixes() {
-    let date = NaiveDate::from_ymd_opt(2026, 10, 19).unwrap();
+    let date = match NaiveDate::from_ymd_opt(2026, 10, 19) {
+        | Some(value) => value,
+        | None => panic!("Invalid date in test fixture"),
+    };
     for keybindings in [Keybindings::Emacs, Keybindings::Helix] {
         let mut model = Model::new(date, Default::default());
         model.settings.keybindings = keybindings;

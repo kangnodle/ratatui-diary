@@ -1,5 +1,3 @@
-//! Integration harness: production keeps the pure model and effect runtime
-//! separate.
 #![allow(dead_code)]
 use chrono::NaiveDate;
 use ratatui_diary::{Model,

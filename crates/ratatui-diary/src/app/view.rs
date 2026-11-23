@@ -1,5 +1,3 @@
-//! 최상위 렌더링 디스패처 + 공용 오버레이(에러 팝업).
-
 use crate::{app::{Model,
                   Screen},
             calendar,
@@ -28,7 +26,6 @@ pub fn view(f: &mut Frame, model: &Model) {
         render_settings(f, model);
     }
 
-    // 에러 팝업
     if model.show_error_popup {
         render_error_popup(f, model);
     }
