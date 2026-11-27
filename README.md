@@ -157,4 +157,4 @@ cargo bench --locked -p ratatui-diary --bench hotpaths
 
 ## 라이선스
 
-MIT
+Ratatui Diary는 kangnodle의 독점 소프트웨어이며 모든 권리가 유보됩니다. 사용 및 배포 조건은 [LICENSE](LICENSE)를 참조하세요. 제3자 구성 요소에는 각 구성 요소의 라이선스가 적용됩니다.

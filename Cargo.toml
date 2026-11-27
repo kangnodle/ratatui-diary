@@ -4,8 +4,10 @@
   resolver        = "2"
 
 [workspace.package]
-  edition = "2024"
-  version = "0.1.0"
+  edition      = "2024"
+  license-file = "LICENSE"
+  publish      = false
+  version      = "0.1.0"
 
 [workspace.dependencies]
   chrono              = { version = "0.4.45", default-features = false, features = ["std"] }

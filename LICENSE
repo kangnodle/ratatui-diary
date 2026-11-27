@@ -1,0 +1,37 @@
+Copyright (c) 2026 kangnodle <kangnodle@gmail.com>
+All rights reserved.
+
+This software, including its source code, object code, documentation,
+packaging, and all associated files in this repository (the "Software"),
+is the proprietary and confidential property of kangnodle
+<kangnodle@gmail.com> (the "Owner").
+
+No license or right, express or implied, is granted to any person or entity
+under any patent, copyright, trade secret, trademark, or other intellectual
+property right of the Owner, except as expressly granted in a separate
+written agreement signed by the Owner.
+
+Without the prior written permission of the Owner, you may not:
+
+  1. copy, reproduce, or distribute the Software, in whole or in part;
+  2. modify, adapt, translate, or create derivative works of the Software;
+  3. sell, sublicense, rent, lease, lend, or otherwise transfer the Software;
+  4. reverse engineer, decompile, or disassemble the Software, except to the
+     extent that such restriction is prohibited by applicable law;
+  5. publish, host, or make the Software available to any third party; or
+  6. remove or alter any copyright, proprietary, or license notice contained
+     in the Software.
+
+Third-party components included in or used by the Software, including those
+under the "vendor" directory and dependencies fetched by Cargo, remain subject
+to their own license terms. Nothing in this notice restricts rights granted
+by those licenses.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+OWNER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+For licensing inquiries, contact: kangnodle@gmail.com

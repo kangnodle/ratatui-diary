@@ -1,6 +1,8 @@
 [package]
   name = "diary-search"
   edition.workspace = true
+  license-file.workspace = true
+  publish.workspace = true
   version.workspace = true
 
 [dependencies]

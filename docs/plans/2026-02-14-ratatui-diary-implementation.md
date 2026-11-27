@@ -1827,7 +1827,7 @@ cargo run
 
 ## 라이선스
 
-MIT
+사용 및 배포 조건은 [LICENSE](LICENSE)를 참조하세요.
 ```
 
 **Step 2: 커밋**
